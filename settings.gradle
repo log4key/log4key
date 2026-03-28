@@ -2,8 +2,6 @@ rootProject.name = 'log4key'
 
 include 'log4key-api'
 include 'log4key-core'
-include 'log4key-benchmark'
-include 'log4key-all'
 include 'samples:log4key-quick-start'
 include 'samples:log4key-spring-boot-simple'
 include 'samples:log4key-config-sample'
