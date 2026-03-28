@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Log4Key 标准配置文件 -->
+<!-- 合并自 log4key-default.txt 与 log4key.xml，并按新需求增强 -->
+
+<logkey>
+    <!-- =====================================================
+     全局基础运行配置
+     ===================================================== -->
+    <configuration>
+        <!-- 默认日志准入级别（当 Logger 未显式定义 level 时使用） -->
+        <defaultLevel>INFO</defaultLevel>
+
+        <!-- 默认日志文件输出目录（当 file appender 未显式定义 directory 时使用） -->
+        <defaultDirectory>./logs</defaultDirectory>
+
+        <!-- 默认字符集（当 formatter 未显式指定时使用） -->
+        <defaultCharset>UTF-8</defaultCharset>
+
+        <!-- 全局工作线程 / 队列配置（与 key 队列绑定） -->
+        <executor>
+            <threads>4</threads>
+            <queueSize>8192</queueSize>
+        </executor>
+
+        <!-- JVM 关闭时是否自动 flush / stop -->
+        <shutdownHook>true</shutdownHook>
+
+    </configuration>
+
+    <!-- =====================================================
+         全局 Formatter 定义（兼容 / 可复用）
+         ===================================================== -->
+    <formatters>
+        <!-- 普通文本格式 -->
+        <formatter name="TEXT_DEFAULT">
+            <type>Text</type>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg%n</pattern>
+        </formatter>
+    </formatters>
+
+    <!-- =====================================================
+         Appenders 定义
+         ===================================================== -->
+    <appenders>
+
+        <!-- 默认 Console Appender（需在 root 或 logger 中显式引用） -->
+        <console name="SAMPLE_CONSOLE">
+            <!-- 输出级别 -->
+            <level>INFO</level>
+
+            <!-- 内联 formatter（优先级最高） -->
+            <formatter>
+                <type>Text</type>
+                <pattern>
+                    %d{HH:mm:ss.SSS} [%thread] %-5level %logger : %msg
+                </pattern>
+            </formatter>
+        </console>
+
+        <!-- 文件 Appender 示例（使用 formatter 引用） -->
+        <!-- Sample 文件 Appender 1 -->
+        <file name="DEFAULT_FILE">
+            <!-- 指定此 Appender 的日志输出目录 -->
+            <directory>./logs/default</directory>
+
+            <!-- 输出级别 -->
+            <level>INFO</level>
+
+            <!-- 输出级别策略：
+                    AT_LEAST = >= level (输出指定级别及以上的日志)
+                    EXACT    = == level (只输出指定级别的日志) -->
+            <levelPolicy>AT_LEAST</levelPolicy>
+
+            <!-- 同时输出到默认的 Console Appender（如 root 中的 SAMPLE_CONSOLE）
+                默认：true -->
+            <consoleEnabled>true</consoleEnabled>
+
+            <!-- 复用全局 formatter -->
+            <formatter ref="TEXT_DEFAULT"/>
+        </file>
+
+        <!-- Sample 文件 Appender 2 -->
+        <file name="BUSINESS_FILE">
+            <!-- 指定此 Appender 的日志输出目录 -->
+            <directory>./logs/business</directory>
+
+            <!-- 输出级别 -->
+            <level>WARN</level>
+
+            <!-- 只输出 WARN 级别（不会输出 ERROR） -->
+            <levelPolicy>EXACT</levelPolicy>
+
+            <!-- 将不会在 SAMPLE_CONSOLE 中输出日志 -->
+            <consoleEnabled>false</consoleEnabled>
+
+            <!-- 复用全局 formatter -->
+            <formatter ref="TEXT_DEFAULT"/>
+        </file>
+
+        <!-- 可扩展更多 appenders... -->
+    </appenders>
+
+    <!-- =====================================================
+         Loggers 定义
+         logger.level：日志准入级别
+         ===================================================== -->
+    <loggers>
+        <!-- 根 Logger -->
+        <root level="INFO">
+            <appender-ref>SAMPLE_CONSOLE</appender-ref>
+            <appender-ref>DEFAULT_FILE</appender-ref>
+        </root>
+
+        <!-- 示例：业务包日志（非 root logger） -->
+        <logger name="com.log4key.sample.business.*" level="WARN">
+            <appender-ref>BUSINESS_FILE</appender-ref>
+        </logger>
+
+        <!-- 可定义更多非 root logger -->
+    </loggers>
+</logkey>

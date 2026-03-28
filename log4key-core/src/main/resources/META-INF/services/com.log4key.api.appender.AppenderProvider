@@ -1,0 +1,2 @@
+com.log4key.appender.FileAppender
+com.log4key.appender.ConsoleAppender

@@ -1,0 +1,4 @@
+dependencies {
+    // 依赖api模块
+    implementation project(':log4key-api')
+}

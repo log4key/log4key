@@ -1,0 +1,16 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.18'
+    id 'io.spring.dependency-management' version '1.1.0'
+}
+
+group = 'com.log4key.sample'
+version = '1.0.0'
+sourceCompatibility = '1.8'
+
+dependencies {
+    implementation project(':log4key-api')
+    implementation project(':log4key-core')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

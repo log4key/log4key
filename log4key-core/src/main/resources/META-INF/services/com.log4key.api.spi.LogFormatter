@@ -1,0 +1,3 @@
+com.log4key.formatter.TextLogFormatter
+com.log4key.formatter.JsonLogFormatter
+com.log4key.formatter.PatternFormatter

@@ -1,0 +1,17 @@
+plugins {
+    id 'application'
+}
+
+group = 'com.log4key.sample'
+version = '1.0.0'
+sourceCompatibility = '1.8'
+
+dependencies {
+    implementation project(':log4key-api')
+    implementation project(':log4key-core')
+    implementation "org.slf4j:slf4j-api:2.0.9"
+}
+
+application {
+    mainClass = "com.log4key.sample.ConfigSampleApplication"
+}

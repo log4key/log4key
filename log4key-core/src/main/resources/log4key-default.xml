@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Log4Key 标准配置文件 -->
+<!-- 合并自 log4key-default.txt 与 log4key-default.xml，并按新需求增强 -->
+
+<logkey>
+    <!-- =====================================================
+     全局基础运行配置
+     ===================================================== -->
+    <configuration>
+        <!-- 默认日志准入级别（当 Logger 未显式定义 level 时使用） -->
+        <defaultLevel>INFO</defaultLevel>
+
+        <!-- 默认日志文件输出目录（当 file appender 未显式定义 directory 时使用） -->
+        <defaultDirectory>./logs</defaultDirectory>
+
+        <!-- 默认字符集（当 formatter 未显式指定时使用） -->
+        <defaultCharset>UTF-8</defaultCharset>
+
+        <!-- 全局线程 / 队列配置（与 key 队列绑定） -->
+        <executor>
+            <threads>4</threads>
+            <queueSize>8192</queueSize>
+        </executor>
+
+        <!-- JVM 关闭时是否自动 flush / stop -->
+        <shutdownHook>true</shutdownHook>
+
+    </configuration>
+
+    <!-- =====================================================
+         全局 Formatter 定义（兼容 / 可复用）
+         ===================================================== -->
+    <formatters>
+        <!-- Console 文本格式 -->
+        <formatter name="CONSOLE_DEFAULT">
+            <type>Text</type>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg</pattern>
+        </formatter>
+
+        <!-- 普通文本格式 -->
+        <formatter name="TEXT_DEFAULT">
+            <type>Text</type>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg%n</pattern>
+        </formatter>
+
+        <!-- JSON 格式 -->
+        <formatter name="JSON_DEFAULT">
+            <type>Json</type>
+            <timestamp>ISO8601</timestamp>
+            <includeLevel>true</includeLevel>
+            <includeLogger>true</includeLogger>
+            <includeThread>true</includeThread>
+            <includeMdc>true</includeMdc>
+        </formatter>
+    </formatters>
+
+    <!-- =====================================================
+         Appenders 定义
+         ===================================================== -->
+    <appenders>
+
+        <!-- 默认 Console Appender（供其他 appender 引用） -->
+        <!-- ===== Console Appender（推荐内联 formatter） ===== -->
+        <console name="CONSOLE">
+            <charset>UTF-8</charset>
+            <level>INFO</level>
+
+            <!-- 内联 formatter（优先级最高） -->
+            <formatter ref="CONSOLE_DEFAULT" />
+        </console>
+
+        <!-- 文件 Appender 示例（使用 formatter 引用） -->
+        <file name="FILE">
+            <charset>UTF-8</charset>
+            <level>INFO</level>
+
+            <!-- 控制是否同时输出到默认 CONSOLE -->
+            <consoleEnabled>true</consoleEnabled>
+
+            <!-- 最大打开文件数，默认 1024，Linux系统下超过此值需要确保 ulimit -n >= 填充值 -->
+            <maxFileWriters>1024</maxFileWriters>
+
+            <!-- 复用全局 formatter -->
+            <formatter ref="TEXT_DEFAULT"/>
+        </file>
+
+        <!-- ===== Audit File Appender（JSON + 引用） ===== -->
+        <file name="AUDIT_FILE">
+
+            <directory>./logs/json</directory>
+
+            <consoleEnabled>false</consoleEnabled>
+
+            <formatter ref="JSON_DEFAULT"/>
+
+        </file>
+
+        <!-- 可扩展更多 appenders... -->
+    </appenders>
+
+    <!-- ===================================================== Loggers ===================================================== -->
+    <loggers>
+        <!-- 根 Logger -->
+        <root level="INFO">
+            <appender-ref>CONSOLE</appender-ref>
+            <appender-ref>FILE</appender-ref>
+        </root>
+
+        <!-- 示例：业务包日志（非 root logger） -->
+<!--        <logger name="com.example.audit" level="INFO">-->
+<!--            <appender-ref>AUDIT_FILE</appender-ref>-->
+<!--        </logger>-->
+
+        <!-- 可定义更多非 root logger -->
+    </loggers>
+</logkey>

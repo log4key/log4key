@@ -1,0 +1,108 @@
+// 插件管理配置
+allprojects {
+    group = 'com.log4key'
+    version = '0.1.0'
+
+    apply plugin: 'java'
+
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    compileJava.options.encoding = 'UTF-8'
+
+    repositories {
+        maven {
+            url "https://maven.aliyun.com/repository/central"
+        }
+        maven {
+            url "https://maven.aliyun.com/repository/public"
+        }
+        maven {
+            url "https://maven.aliyun.com/repository/google"
+        }
+        maven {
+            url "https://maven.aliyun.com/repository/gradle-plugin"
+        }
+        maven {
+            url "https://maven.aliyun.com/repository/spring"
+        }
+        maven {
+            url "https://repo.maven.apache.org/maven2"
+        }
+        maven {
+            url "https://repo1.maven.org/maven2"
+        }
+        maven {
+            url "https://repository.apache.org/service/local/repositories/releases/content"
+        }
+        maven {
+            url "https://repository.apache.org/content/groups/public"
+        }
+        mavenCentral()
+    }
+
+    tasks.withType(Test) {
+        useJUnitPlatform()
+    }
+
+}
+
+subprojects {
+    // 统一依赖版本管理
+    ext {
+        springBootVersion = '2.7.18'
+        gsonVersion = '2.10.1'
+        slf4jVersion = '2.0.9'
+        nettyVersion = '4.1.108.Final'
+        junitVersion = '5.9.2'
+        snakeYamlVersion = '1.33'
+    }
+
+
+
+    dependencies {
+        // slf4j
+        implementation "org.slf4j:slf4j-api:$slf4jVersion"
+        // Gson解析依赖
+        implementation "com.google.code.gson:gson:$gsonVersion"
+        // YAML解析依赖
+        implementation "org.yaml:snakeyaml:$snakeYamlVersion"
+        // 测试依赖
+        testImplementation "junit:junit:4.13.2"
+        testImplementation "org.junit.jupiter:junit-jupiter-api:5.9.2"
+        testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.7.0"
+        testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.9.2"
+        testImplementation "org.mockito:mockito-core:3.12.4"
+        testImplementation "org.mockito:mockito-junit-jupiter:3.12.4"
+    }
+
+    /**
+     * 批量导出全部 jar 包
+     */
+//    task export1(type: Copy) {
+//        dependsOn = [assemble]
+//        from './build/libs'
+//        into "$rootDir/dist"
+//    }
+
+}
+
+/**
+ * 批量导出全部 jar 包
+ */
+task export(type: Copy) {
+    def exportProjects = subprojects.findAll {
+        !it.path.startsWith(":samples") &&
+                it.name != "log4key-benchmark"
+    }
+
+    dependsOn exportProjects.collect { it.tasks.named("jar") }
+
+    from {
+        exportProjects.collect {
+            it.tasks.named("jar").get().archiveFile
+        }
+    }
+
+    into "$rootDir/dist"
+}
