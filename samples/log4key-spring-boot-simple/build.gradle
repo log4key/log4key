@@ -9,8 +9,7 @@ version = '1.0.0'
 sourceCompatibility = '1.8'
 
 dependencies {
-    implementation project(':log4key-api')
-    implementation project(':log4key-core')
+    implementation 'com.log4key:log4key-all:0.1.0'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

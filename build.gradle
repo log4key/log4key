@@ -1,7 +1,7 @@
 // 插件管理配置
 allprojects {
     group = 'com.log4key'
-    version = '0.1.0'
+    version = '0.1.1'
 
     apply plugin: 'java'
 
@@ -57,8 +57,6 @@ subprojects {
         junitVersion = '5.9.2'
         snakeYamlVersion = '1.33'
     }
-
-
 
     dependencies {
         // slf4j
