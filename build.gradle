@@ -1,7 +1,18 @@
+// ============================
+// 主 build.gradle（整合 all 模块发布逻辑）
+// ============================
+
 // 插件管理配置
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'signing'
+    id 'io.github.sgtsilvio.gradle.maven-central-publishing' version '0.4.1'
+}
+
 allprojects {
     group = 'com.log4key'
-    version = '0.1.1'
+    version = '0.1.2'
 
     apply plugin: 'java'
 
@@ -11,40 +22,21 @@ allprojects {
     compileJava.options.encoding = 'UTF-8'
 
     repositories {
-        maven {
-            url "https://maven.aliyun.com/repository/central"
-        }
-        maven {
-            url "https://maven.aliyun.com/repository/public"
-        }
-        maven {
-            url "https://maven.aliyun.com/repository/google"
-        }
-        maven {
-            url "https://maven.aliyun.com/repository/gradle-plugin"
-        }
-        maven {
-            url "https://maven.aliyun.com/repository/spring"
-        }
-        maven {
-            url "https://repo.maven.apache.org/maven2"
-        }
-        maven {
-            url "https://repo1.maven.org/maven2"
-        }
-        maven {
-            url "https://repository.apache.org/service/local/repositories/releases/content"
-        }
-        maven {
-            url "https://repository.apache.org/content/groups/public"
-        }
+        maven { url "https://maven.aliyun.com/repository/central" }
+        maven { url "https://maven.aliyun.com/repository/public" }
+        maven { url "https://maven.aliyun.com/repository/google" }
+        maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
+        maven { url "https://maven.aliyun.com/repository/spring" }
+        maven { url "https://repo.maven.apache.org/maven2" }
+        maven { url "https://repo1.maven.org/maven2" }
+        maven { url "https://repository.apache.org/service/local/repositories/releases/content" }
+        maven { url "https://repository.apache.org/content/groups/public" }
         mavenCentral()
     }
 
     tasks.withType(Test) {
         useJUnitPlatform()
     }
-
 }
 
 subprojects {
@@ -59,13 +51,10 @@ subprojects {
     }
 
     dependencies {
-        // slf4j
         implementation "org.slf4j:slf4j-api:$slf4jVersion"
-        // Gson解析依赖
         implementation "com.google.code.gson:gson:$gsonVersion"
-        // YAML解析依赖
         implementation "org.yaml:snakeyaml:$snakeYamlVersion"
-        // 测试依赖
+
         testImplementation "junit:junit:4.13.2"
         testImplementation "org.junit.jupiter:junit-jupiter-api:5.9.2"
         testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.7.0"
@@ -73,34 +62,198 @@ subprojects {
         testImplementation "org.mockito:mockito-core:3.12.4"
         testImplementation "org.mockito:mockito-junit-jupiter:3.12.4"
     }
-
-    /**
-     * 批量导出全部 jar 包
-     */
-//    task export1(type: Copy) {
-//        dependsOn = [assemble]
-//        from './build/libs'
-//        into "$rootDir/dist"
-//    }
-
 }
 
-/**
- * 批量导出全部 jar 包
- */
-task export(type: Copy) {
-    def exportProjects = subprojects.findAll {
-        !it.path.startsWith(":samples") &&
-                it.name != "log4key-benchmark"
+// ============================
+// 聚合 Jar、源码 Jar、Javadoc Jar
+// ============================
+
+// 禁用默认 jar
+tasks.named('jar') { enabled = false }
+
+// 聚合 Jar（只打包 api 和 core）
+tasks.register('aggregatedJar', Jar) {
+    group = 'build'
+    description = 'Aggregated jar of log4key-api and log4key-core only'
+
+    archiveBaseName.set('log4key-all')
+    archiveClassifier.set('')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from project(":log4key-api").sourceSets.main.output
+    from project(":log4key-core").sourceSets.main.output
+
+    from project(":log4key-api").sourceSets.main.resources
+    from project(":log4key-core").sourceSets.main.resources
+
+    manifest {
+        attributes(
+                'Implementation-Title': 'Log4Key',
+                'Implementation-Version': project.version,
+                'Built-By': System.getProperty('user.name'),
+                'Built-Date': new Date().format('yyyy-MM-dd HH:mm:ss')
+        )
+    }
+}
+
+// 源码 Jar
+tasks.register('sourcesJar', Jar) {
+    group = 'build'
+    description = 'Sources Jar for Maven Central'
+    archiveClassifier.set('sources')
+
+    from project(":log4key-api").sourceSets.main.allJava
+    from project(":log4key-core").sourceSets.main.allJava
+}
+
+// Javadoc
+tasks.register('aggregatedJavadoc', Javadoc) {
+    group = 'documentation'
+    description = 'Aggregated Javadoc for api + core'
+
+    source project(":log4key-api").sourceSets.main.allJava
+    source project(":log4key-core").sourceSets.main.allJava
+
+    classpath = files(
+            project(":log4key-api").sourceSets.main.compileClasspath,
+            project(":log4key-core").sourceSets.main.compileClasspath
+    )
+
+    destinationDir = file("${buildDir}/docs/javadoc")
+    options {
+        encoding = 'UTF-8'
+        addStringOption('Xdoclint:none', '-quiet')
+        links 'https://docs.oracle.com/javase/8/docs/api/'
     }
 
-    dependsOn exportProjects.collect { it.tasks.named("jar") }
+    failOnError = false
+}
 
-    from {
-        exportProjects.collect {
-            it.tasks.named("jar").get().archiveFile
+tasks.register('javadocJar', Jar) {
+    group = 'build'
+    description = 'Javadoc Jar for Maven Central'
+
+    archiveClassifier.set('javadoc')
+    from aggregatedJavadoc
+    dependsOn aggregatedJavadoc
+}
+
+// GitHub Release 构建
+tasks.register('githubBuild') {
+    group = 'release'
+    description = 'Build jar for GitHub Release'
+
+    dependsOn aggregatedJar
+
+    doLast {
+        def jarFile = aggregatedJar.archiveFile.get().asFile
+        println "GitHub Release artifact ready: ${jarFile}"
+    }
+}
+
+// ============================
+// Maven Central 发布配置
+// ============================
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'log4key-all'
+            artifact aggregatedJar
+            artifact sourcesJar
+            artifact javadocJar
+
+            pom {
+                inceptionYear = "2026"
+                name = 'Log4Key'
+                description = 'Log4Key - Key-based log routing for high-throughput Java systems'
+                url = 'https://github.com/log4key/log4key'
+
+                licenses {
+                    license {
+                        name = 'GNU General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.en.html'
+                    }
+                    license {
+                        name = 'Commercial License'
+                        url = 'https://github.com/log4key/log4key/blob/master/LICENSING.md'
+                    }
+                }
+
+                developers {
+                    developer {
+                        name = 'Guanyx'
+                        email = 'log4key@zohomail.com'
+                        organization = 'Log4Key'
+                        organizationUrl = 'https://github.com/log4key'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/log4key/log4key.git'
+                    developerConnection = 'scm:git:ssh://git@github.com:log4key/log4key.git'
+                    url = 'https://github.com/log4key/log4key'
+                }
+
+                // 收集子模块依赖
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+                    ['log4key-api','log4key-core'].each { module ->
+                        project(":$module").configurations.implementation.allDependencies.each { dep ->
+                            if (dep.group && dep.name && dep.version && !dep.name.contains('log4key')) {
+                                def existing = dependenciesNode.dependency.find {
+                                    it.artifactId.text() == dep.name && it.groupId.text() == dep.group
+                                }
+                                if (!existing) {
+                                    def depNode = dependenciesNode.appendNode('dependency')
+                                    depNode.appendNode('groupId', dep.group)
+                                    depNode.appendNode('artifactId', dep.name)
+                                    depNode.appendNode('version', dep.version)
+                                    depNode.appendNode('scope', 'compile')
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    into "$rootDir/dist"
+    repositories {
+        maven {
+            name = 'OSSRH'
+            url = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
+            credentials {
+                username = project.findProperty('ossrhUsername') ?: System.getenv('OSSRH_USERNAME')
+                password = project.findProperty('ossrhPassword') ?: System.getenv('OSSRH_PASSWORD')
+            }
+        }
+    }
+}
+
+// GPG 签名
+signing {
+    sign publishing.publications.mavenJava
+}
+
+// ============================
+// 查看产物
+// ============================
+tasks.register('showArtifacts') {
+    group = 'help'
+    description = 'Shows all artifacts for Maven Central and GitHub Release'
+
+    dependsOn aggregatedJar, sourcesJar, javadocJar
+
+    doLast {
+        println "\nArtifacts for Maven Central (in ${buildDir}/publications/mavenJava):"
+        file("${buildDir}/publications/mavenJava").listFiles()?.each { file ->
+            println "  ${file.name} (${file.length()/1024} KB)"
+        }
+        println "\nGitHub Release artifact (in ${buildDir}/libs):"
+        file("${buildDir}/libs").listFiles()?.each { file ->
+            println "  ${file.name} (${file.length()/1024} KB)"
+        }
+    }
 }
