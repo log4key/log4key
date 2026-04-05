@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "master"]
+    branches: ["master"]
   pull_request:
 
 jobs:
@@ -19,8 +19,8 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      - name: Build with Maven
-        run: mvn -B clean verify
+      - name: Grant execute permission
+        run: chmod +x gradlew
 
-      - name: Run tests
-        run: mvn test
+      - name: Build with Gradle
+        run: ./gradlew build
