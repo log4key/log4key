@@ -234,6 +234,10 @@ publishing {
 
 // GPG 签名
 signing {
+    def privateKey = findProperty("GPG_PRIVATE_KEY") ?: System.getenv("GPG_PRIVATE_KEY")
+    def passphrase = findProperty("GPG_PASSPHRASE") ?: System.getenv("GPG_PASSPHRASE")
+
+    useInMemoryPgpKeys(privateKey, passphrase)
     sign publishing.publications.mavenJava
 }
 
