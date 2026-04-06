@@ -75,4 +75,4 @@ jobs:
         with:
           files: build/libs/*.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GH_RELEASE_PAT }}
