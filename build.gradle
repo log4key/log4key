@@ -195,23 +195,32 @@ publishing {
                     url = 'https://github.com/log4key/log4key'
                 }
 
-                // 收集子模块依赖
+                // 声明项目依赖（让使用方自动下载，而不是打包进 jar）
                 withXml {
                     def dependenciesNode = asNode().appendNode('dependencies')
 
-                    ['log4key-api','log4key-core'].each { module ->
-                        project(":$module").configurations.implementation.allDependencies.each { dep ->
-                            if (dep.group && dep.name && dep.version && !dep.name.contains('log4key')) {
-                                def existing = dependenciesNode.dependency.find {
-                                    it.artifactId.text() == dep.name && it.groupId.text() == dep.group
-                                }
-                                if (!existing) {
-                                    def depNode = dependenciesNode.appendNode('dependency')
-                                    depNode.appendNode('groupId', dep.group)
-                                    depNode.appendNode('artifactId', dep.name)
-                                    depNode.appendNode('version', dep.version)
-                                    depNode.appendNode('scope', 'compile')
-                                }
+                    // 收集 api 模块的依赖
+                    project(":log4key-api").configurations.implementation.allDependencies.each { dep ->
+                        if (dep.group && dep.name && dep.version && !dep.name.contains('log4key')) {
+                            def depNode = dependenciesNode.appendNode('dependency')
+                            depNode.appendNode('groupId', dep.group)
+                            depNode.appendNode('artifactId', dep.name)
+                            depNode.appendNode('version', dep.version)
+                            depNode.appendNode('scope', 'compile')
+                        }
+                    }
+
+                    // 收集 core 模块的依赖（去重）
+                    project(":log4key-core").configurations.implementation.allDependencies.each { dep ->
+                        if (dep.group && dep.name && dep.version && !dep.name.contains('log4key')) {
+                            // 避免重复添加相同的依赖
+                            def existing = dependenciesNode.dependency.find { it.artifactId.text() == dep.name && it.groupId.text() == dep.group }
+                            if (!existing) {
+                                def depNode = dependenciesNode.appendNode('dependency')
+                                depNode.appendNode('groupId', dep.group)
+                                depNode.appendNode('artifactId', dep.name)
+                                depNode.appendNode('version', dep.version)
+                                depNode.appendNode('scope', 'compile')
                             }
                         }
                     }
@@ -219,25 +228,14 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            name = 'OSSRH'
-            url = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
-            credentials {
-                username = project.findProperty('ossrhUsername') ?: System.getenv('OSSRH_USERNAME')
-                password = project.findProperty('ossrhPassword') ?: System.getenv('OSSRH_PASSWORD')
-            }
-        }
-    }
 }
 
 // GPG 签名
 signing {
-    def privateKey = findProperty("GPG_PRIVATE_KEY") ?: System.getenv("GPG_PRIVATE_KEY")
-    def passphrase = findProperty("GPG_PASSPHRASE") ?: System.getenv("GPG_PASSPHRASE")
+    def privateKey = findProperty("signingInMemoryKey")
+    def passphrase = findProperty("signingInMemoryKeyPassword")
 
-    useInMemoryPgpKeys(privateKey, passphrase)
+    useInMemoryPgpKeys(privateKey as String, passphrase as String)
     sign publishing.publications.mavenJava
 }
 
