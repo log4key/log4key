@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.6] - 2026-05-16
+## [0.1.4] - 2026-05-16
 ### Added
 - 新增 JsonSerializer SPI 接口，解耦 JSON 序列化依赖
 - 新增 JsonSerializerProvider 内部提供者，通过 Java SPI 机制自动发现 JsonSerializer 实现
