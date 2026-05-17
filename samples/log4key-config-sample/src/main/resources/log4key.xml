@@ -36,6 +36,16 @@
             <type>Text</type>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg%n</pattern>
         </formatter>
+
+
+        <!-- JSON 格式 -->
+        <formatter name="JSON_DEFAULT">
+            <type>Json</type>
+            <timestamp>ISO8601</timestamp>
+            <includeLevel>true</includeLevel>
+            <includeLogger>true</includeLogger>
+            <includeThread>true</includeThread>
+        </formatter>
     </formatters>
 
     <!-- =====================================================
@@ -97,6 +107,24 @@
             <formatter ref="TEXT_DEFAULT"/>
         </file>
 
+        <!-- Sample 文件 Appender 3 -->
+        <file name="JSON_FILE">
+            <!-- 指定此 Appender 的日志输出目录 -->
+            <directory>./logs/json</directory>
+
+            <!-- 输出级别 -->
+            <level>INFO</level>
+
+            <!-- 只输出 WARN 级别（不会输出 ERROR） -->
+            <levelPolicy>AT_LEAST</levelPolicy>
+
+            <!-- 将不会在 SAMPLE_CONSOLE 中输出日志 -->
+            <consoleEnabled>false</consoleEnabled>
+
+            <!-- 复用全局 formatter -->
+            <formatter ref="JSON_DEFAULT"/>
+        </file>
+
         <!-- 可扩展更多 appenders... -->
     </appenders>
 
@@ -114,6 +142,11 @@
         <!-- 示例：业务包日志（非 root logger） -->
         <logger name="com.log4key.sample.business.*" level="WARN">
             <appender-ref>BUSINESS_FILE</appender-ref>
+        </logger>
+
+        <!-- 示例：Json格式日志（非 root logger） -->
+        <logger name="com.log4key.sample.json.*" level="INFO">
+            <appender-ref>JSON_FILE</appender-ref>
         </logger>
 
         <!-- 可定义更多非 root logger -->

@@ -9,6 +9,7 @@ import com.log4key.LogManager;
 import com.log4key.api.DefaultLogKey;
 import com.log4key.api.ILogKey;
 import com.log4key.sample.business.WarnSample;
+import com.log4key.sample.json.JsonFormatterSample;
 import com.log4key.slf4j.Log4KeyLogger;
 import com.log4key.slf4j.Log4KeyLoggerFactory;
 
@@ -49,7 +50,11 @@ public class ConfigSampleApplication {
         WarnSample.log(message);
         WarnSample.log(orderKey, message);
 
-        System.out.println("Logs written. Check ./logs/default and ./logs/business");
+        // Json 日志格式
+        JsonFormatterSample.log(message);
+        JsonFormatterSample.log(orderKey, message);
+
+        System.out.println("Logs written. Check ./logs/default and ./logs/business and ./logs/json ");
 
         // Flush & shutdown (required for standalone apps).
         // In frameworks like Spring Boot or when using JVM shutdown hooks, this is handled automatically.
