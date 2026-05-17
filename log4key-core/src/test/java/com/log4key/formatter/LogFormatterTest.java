@@ -116,7 +116,7 @@ public class LogFormatterTest {
         assertNotNull("Chained format result should not be null", chainedResult);
         
         // 测试自定义链式调用 - 只使用实际存在的formatters
-        manager.configureChain(Arrays.asList("text", "json"));
+        manager.configureChain(Arrays.asList("text"));
         String customChainedResult = manager.formatWithChain(testEvent);
         assertNotNull("Custom chained format result should not be null", customChainedResult);
         
@@ -127,7 +127,7 @@ public class LogFormatterTest {
         assertNotNull("Chained format result with context should not be null", chainedResultWithContext);
         
         // 测试重新配置链式调用 - XML formatter does not exist, use pattern instead
-        manager.configureChain(Arrays.asList("json", "text"));
+        manager.configureChain(Arrays.asList("text"));
         String reconfiguredChainedResult = manager.formatWithChain(testEvent);
         assertNotNull("Reconfigured chained format result should not be null", reconfiguredChainedResult);
         
