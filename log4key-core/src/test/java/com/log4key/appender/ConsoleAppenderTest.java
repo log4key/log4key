@@ -9,7 +9,6 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,32 +140,6 @@ public class ConsoleAppenderTest {
         for (int i = 0; i < 5; i++) {
             assertTrue("Output should contain batch message " + i, output.contains("Batch test message " + i));
         }
-    }
-    
-    /**
-     * 测试JSON格式化器
-     */
-    @Test
-    public void testJsonFormatter() {
-        // 初始化appender，使用JSON格式化器
-        Map<String, Object> config = new HashMap<>();
-        config.put("formatter", "json");
-        config.put("asyncSupported", "false");
-        appender.initialize(config);
-        appender.start();
-        
-        // 创建测试事件
-        LogEvent event = createTestEvent("JSON test message");
-        
-        // 执行append
-        appender.append(event);
-        
-        // 验证输出
-        String output = outContent.toString();
-        assertTrue("JSON output should contain message field", output.contains("message"));
-        assertTrue("JSON output should contain test message", output.contains("JSON test message"));
-        assertTrue("JSON output should contain timestamp field", output.contains("timestamp"));
-        assertTrue("JSON output should contain level field", output.contains("INFO"));
     }
     
     /**

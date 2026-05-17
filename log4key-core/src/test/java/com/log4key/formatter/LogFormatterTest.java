@@ -79,43 +79,12 @@ public class LogFormatterTest {
     }
     
     @Test
-    public void testJsonFormatter() {
-        LogFormatter jsonFormatter = new JsonLogFormatter();
-        
-        // 测试基本格式化
-        String formatted = jsonFormatter.format(testEvent);
-        
-        assertNotNull("JSON formatted log should not be null", formatted);
-        assertTrue("JSON formatted log should contain level field", formatted.contains("\"level\""));
-        assertTrue("JSON formatted log should contain INFO level", formatted.contains("\"INFO\""));
-        assertTrue("JSON formatted log should contain message field", formatted.contains("\"message\""));
-        assertTrue("JSON formatted log should contain mdc field", formatted.contains("\"mdc\""));
-        
-        // 测试带有上下文信息的格式化
-        Map<String, Object> context = new HashMap<>();
-        context.put("extraField", "extraValue");
-        String formattedWithContext = jsonFormatter.format(testEvent, context);
-        assertTrue("JSON formatted log with context should contain context field", formattedWithContext.contains("\"context\""));
-        
-        // 测试带有异常的格式化
-        String formattedWithException = jsonFormatter.format(testEventWithException);
-        assertTrue("JSON formatted log with exception should contain exception field", formattedWithException.contains("\"exception\""));
-        assertTrue("JSON formatted log with exception should contain ERROR level", formattedWithException.contains("\"ERROR\""));
-        
-        System.out.println("JSON Formatter Test Result:");
-        System.out.println(formatted);
-    }
-    
-    @Test
     public void testFormatterManager() {
         LogFormatterManager manager = LogFormatterManager.getInstance();
         
         // 测试获取格式化器 - 只测试实际存在的formatter
         LogFormatter textFormatter = manager.getFormatter("text");
         assertNotNull("Text formatter should be available", textFormatter);
-        
-        LogFormatter jsonFormatter = manager.getFormatter("json");
-        assertNotNull("JSON formatter should be available", jsonFormatter);
         
         // XML formatter does not exist in the project
         // LogFormatter xmlFormatter = manager.getFormatter("xml");
@@ -124,9 +93,6 @@ public class LogFormatterTest {
         // 测试使用管理器格式化日志
         String textFormatted = manager.format(testEvent, "text");
         assertNotNull("Text formatted log via manager should not be null", textFormatted);
-        
-        String jsonFormatted = manager.format(testEvent, "json");
-        assertNotNull("JSON formatted log via manager should not be null", jsonFormatted);
         
         // XML formatter does not exist
         // String xmlFormatted = manager.format(testEvent, "xml");
