@@ -5,14 +5,11 @@
  */
 package com.log4key.formatter;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.log4key.api.LogEvent;
 import com.log4key.api.spi.LogFormatter;
 import com.log4key.internal.InternalLogger;
+import com.log4key.internal.JsonSerializerProvider;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,13 +25,6 @@ public class JsonLogFormatter implements LogFormatter {
      */
     private static final InternalLogger logger = InternalLogger.getLogger(JsonLogFormatter.class);
 
-    // 默认不使用美化格式，提高性能
-    private static final Gson DEFAULT_GSON = new GsonBuilder()
-            .setDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
-            .create();
-    
-    private Gson gson = DEFAULT_GSON;
-    private String timestampFormat = "yyyy-MM-dd HH:mm:ss.SSS";
     private boolean includeLevel = true;
     private boolean includeLogger = true;
     private boolean includeThread = true;
@@ -52,28 +42,6 @@ public class JsonLogFormatter implements LogFormatter {
         return "json";
     }
     
-    /**
-     * Sets the timestamp format.
-     *
-     * 设置时间戳格式。
-     *
-     * @param timestampFormat the timestamp format / 时间戳格式
-     */
-    public void setTimestampFormat(String timestampFormat) {
-        if (timestampFormat != null && !timestampFormat.isEmpty()) {
-            this.timestampFormat = timestampFormat;
-            if ("ISO8601".equalsIgnoreCase(timestampFormat)) {
-                this.gson = new GsonBuilder()
-                        .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-                        .create();
-            } else {
-                this.gson = new GsonBuilder()
-                        .setDateFormat(timestampFormat)
-                        .create();
-            }
-        }
-    }
-
     /**
      * Sets whether to include log level.
      *
@@ -215,6 +183,6 @@ public class JsonLogFormatter implements LogFormatter {
         }
 
         // 返回时自动加入换行符
-        return gson.toJson(logMap) + System.lineSeparator();
+        return JsonSerializerProvider.get().serialize(logMap) + System.lineSeparator();
     }
 }

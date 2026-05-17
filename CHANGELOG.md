@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.6] - 2026-05-16
+### Added
+- 新增 JsonSerializer SPI 接口，解耦 JSON 序列化依赖
+- 新增 JsonSerializerProvider 内部提供者，通过 Java SPI 机制自动发现 JsonSerializer 实现
+- 移除 log4key-core 对 Gson 的直接依赖，改由用户自行选择 JSON 库
+- 新增 GsonJsonSerializer 示例实现，演示如何集成第三方 JSON 库
+
+### Changed
+- JsonLogFormatter 改为通过 JsonSerializerProvider SPI 获取序列化能力
+
+---
+
 ## [0.1.2] - 2026-04-06
 ### 新功能
 - 增加CI自动化处理
