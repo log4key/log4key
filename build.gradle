@@ -22,13 +22,13 @@ allprojects {
     compileJava.options.encoding = 'UTF-8'
 
     repositories {
+        maven { url "https://repo.maven.apache.org/maven2" }
+        maven { url "https://repo1.maven.org/maven2" }
         maven { url "https://maven.aliyun.com/repository/central" }
         maven { url "https://maven.aliyun.com/repository/public" }
         maven { url "https://maven.aliyun.com/repository/google" }
         maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
         maven { url "https://maven.aliyun.com/repository/spring" }
-        maven { url "https://repo.maven.apache.org/maven2" }
-        maven { url "https://repo1.maven.org/maven2" }
         maven { url "https://repository.apache.org/service/local/repositories/releases/content" }
         maven { url "https://repository.apache.org/content/groups/public" }
         mavenCentral()
