@@ -7,7 +7,6 @@ package com.log4key.router;
 
 import com.log4key.api.ILogKey;
 import com.log4key.api.LogEvent;
-import com.log4key.api.router.ShardingStrategy;
 import com.log4key.api.router.SmartFileRouter;
 import com.log4key.config.model.OutputLevelPolicy;
 
@@ -41,16 +40,6 @@ public class SmartFileRouterImpl implements SmartFileRouter {
      * 默认日志目录
      */
     private volatile String defaultDirectory = DEFAULT_DEFAULT_DIRECTORY;
-
-    /**
-     * 当前分片策略
-     */
-    private volatile ShardingStrategy shardingStrategy;
-
-    /**
-     * 分片策略注册表
-     */
-    private final Map<String, ShardingStrategy> strategyRegistry = new ConcurrentHashMap<>();
 
     /**
      * 初始化状态
@@ -119,10 +108,6 @@ public class SmartFileRouterImpl implements SmartFileRouter {
      * 构造函数
      */
     public SmartFileRouterImpl() {
-        // 注册默认分片策略
-        registerDefaultStrategies();
-        // 默认使用哈希分片策略
-        this.shardingStrategy = new HashShardingStrategy();
     }
 
     /**
@@ -286,33 +271,6 @@ public class SmartFileRouterImpl implements SmartFileRouter {
     }
 
     /**
-     * Gets the current sharding strategy.
-     *
-     * 获取当前的分片策略。
-     *
-     * @return the sharding strategy instance / 分片策略实例
-     */
-    @Override
-    public ShardingStrategy getShardingStrategy() {
-        return shardingStrategy;
-    }
-
-    /**
-     * 设置分片策略
-     *
-     * @param strategy 分片策略
-     */
-    @Override
-    public void setShardingStrategy(ShardingStrategy strategy) {
-        if (strategy == null) {
-            throw new IllegalArgumentException("Sharding strategy cannot be null");
-        }
-        this.shardingStrategy = strategy;
-        // 清空路径缓存，因为分片策略改变了
-        dayCacheRef.get().pathCache.clear();
-    }
-
-    /**
      * 初始化路由器
      */
     @Override
@@ -322,12 +280,6 @@ public class SmartFileRouterImpl implements SmartFileRouter {
                 initLock.lock();
                 // 创建默认日志目录
                 ensureDirectoryExists(Paths.get(defaultDirectory));
-
-                // 初始化分片策略
-                if (shardingStrategy instanceof HashShardingStrategy) {
-                    HashShardingStrategy hashStrategy = (HashShardingStrategy) shardingStrategy;
-                    hashStrategy.setParameter("bucketCount", 16); // 默认16个桶
-                }
             } finally {
                 initLock.unlock();
             }
@@ -340,48 +292,6 @@ public class SmartFileRouterImpl implements SmartFileRouter {
     @Override
     public void shutdown() {
         initialized.set(false);
-    }
-
-    /**
-     * 注册分片策略
-     *
-     * @param strategy 分片策略
-     */
-    public void registerStrategy(ShardingStrategy strategy) {
-        if (strategy == null) {
-            throw new IllegalArgumentException("Sharding strategy cannot be null");
-        }
-        strategyRegistry.put(strategy.getName(), strategy);
-    }
-
-    /**
-     * 根据名称获取分片策略
-     *
-     * @param name 策略名称
-     * @return 分片策略实例
-     */
-    public ShardingStrategy getStrategyByName(String name) {
-        if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Strategy name cannot be null or empty");
-        }
-        return strategyRegistry.get(name);
-    }
-
-    /**
-     * Switches to the specified sharding strategy by name.
-     *
-     * 切换到指定名称的分片策略。
-     *
-     * @param name the strategy name / 策略名称
-     * @return true if switch succeeded / 是否切换成功
-     */
-    public boolean switchStrategy(String name) {
-        ShardingStrategy strategy = getStrategyByName(name);
-        if (strategy != null) {
-            setShardingStrategy(strategy);
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -459,135 +369,6 @@ public class SmartFileRouterImpl implements SmartFileRouter {
         File directory = directoryPath.toFile();
         if (!directory.exists()) {
             directory.mkdirs();
-        }
-    }
-
-    /**
-     * 注册默认的分片策略
-     */
-    private void registerDefaultStrategies() {
-        // 注册哈希分片策略
-        HashShardingStrategy hashStrategy = new HashShardingStrategy();
-        hashStrategy.setParameter("bucketCount", 16);
-        registerStrategy(hashStrategy);
-
-        // 注册时间分片策略
-        TimeShardingStrategy timeStrategy = new TimeShardingStrategy();
-        timeStrategy.setParameter("granularity", "day");
-        registerStrategy(timeStrategy);
-    }
-
-    /**
-     * 哈希分片策略实现
-     * 根据主键的哈希值进行分片
-     */
-    private static class HashShardingStrategy implements ShardingStrategy {
-
-        /**
-         * 分片参数
-         */
-        private final Map<String, Object> parameters = new ConcurrentHashMap<>();
-
-        /**
-         * 默认桶数量
-         */
-        private static final int DEFAULT_BUCKET_COUNT = 16;
-
-        @Override
-        public String getName() {
-            return "hashSharding";
-        }
-
-        @Override
-        public String getShardId(ILogKey key) {
-            if (key == null) {
-                throw new IllegalArgumentException("Log key cannot be null");
-            }
-
-            int bucketCount = (int) getParameterOrDefault("bucketCount", DEFAULT_BUCKET_COUNT);
-            int hashCode = Math.abs(key.hashCode());
-            int bucketIndex = hashCode % bucketCount;
-
-            return "bucket_" + bucketIndex;
-        }
-
-        @Override
-        public void setParameter(String paramName, Object paramValue) {
-            if (paramName == null || paramName.isEmpty()) {
-                throw new IllegalArgumentException("Parameter name cannot be null or empty");
-            }
-            parameters.put(paramName, paramValue);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> T getParameter(String paramName) {
-            if (paramName == null || paramName.isEmpty()) {
-                throw new IllegalArgumentException("Parameter name cannot be null or empty");
-            }
-            return (T) parameters.get(paramName);
-        }
-
-        /**
-         * 获取参数，如果不存在则返回默认值
-         */
-        private Object getParameterOrDefault(String paramName, Object defaultValue) {
-            Object value = getParameter(paramName);
-            return value != null ? value : defaultValue;
-        }
-    }
-
-    /**
-     * 时间分片策略实现
-     * 根据时间进行分片
-     */
-    private static class TimeShardingStrategy implements ShardingStrategy {
-
-        private final Map<String, Object> parameters = new ConcurrentHashMap<>();
-        private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
-        @Override
-        public String getName() {
-            return "timeSharding";
-        }
-
-        @Override
-        public String getShardId(ILogKey key) {
-            if (key == null) {
-                throw new IllegalArgumentException("Log key cannot be null");
-            }
-
-            String granularity = (String) getParameterOrDefault("granularity", "day");
-            Date now = new Date();
-
-            if ("hour".equals(granularity)) {
-                SimpleDateFormat hourFormat = new SimpleDateFormat("yyyy-MM-dd-HH");
-                return "time_" + hourFormat.format(now);
-            } else {
-                return "time_" + dateFormat.format(now);
-            }
-        }
-
-        @Override
-        public void setParameter(String paramName, Object paramValue) {
-            if (paramName == null || paramName.isEmpty()) {
-                throw new IllegalArgumentException("Parameter name cannot be null or empty");
-            }
-            parameters.put(paramName, paramValue);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> T getParameter(String paramName) {
-            if (paramName == null || paramName.isEmpty()) {
-                throw new IllegalArgumentException("Parameter name cannot be null or empty");
-            }
-            return (T) parameters.get(paramName);
-        }
-
-        private Object getParameterOrDefault(String paramName, Object defaultValue) {
-            Object value = getParameter(paramName);
-            return value != null ? value : defaultValue;
         }
     }
 }

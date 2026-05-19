@@ -9,10 +9,10 @@ import com.log4key.api.ILogKey;
 import com.log4key.api.LogEvent;
 
 /**
- * Smart file router interface that routes logs to different files based on log key and supports sharding storage.
+ * Smart file router interface that routes logs to different files based on log key.
  *
  * 智能文件路由器接口
- * 根据日志主键将日志路由到不同的文件中，支持分片存储
+ * 根据日志主键将日志路由到不同的文件中
  */
 public interface SmartFileRouter {
     
@@ -63,18 +63,4 @@ public interface SmartFileRouter {
      * 关闭路由器，释放资源
      */
     void shutdown();
-    
-    /**
-     * 获取当前的分片策略
-     * 
-     * @return 分片策略实例
-     */
-    ShardingStrategy getShardingStrategy();
-    
-    /**
-     * 设置分片策略
-     * 
-     * @param strategy 分片策略
-     */
-    void setShardingStrategy(ShardingStrategy strategy);
 }
