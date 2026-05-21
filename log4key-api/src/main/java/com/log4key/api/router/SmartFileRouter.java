@@ -5,8 +5,8 @@
  */
 package com.log4key.api.router;
 
-import com.log4key.api.ILogKey;
 import com.log4key.api.LogEvent;
+import com.log4key.path.PathKey;
 
 /**
  * Smart file router interface that routes logs to different files based on log key.
@@ -17,20 +17,12 @@ import com.log4key.api.LogEvent;
 public interface SmartFileRouter {
     
     /**
-     * 根据日志主键确定日志文件路径
-     * 
-     * @param key 日志主键
-     * @return 日志文件路径
-     */
-    String determineLogFilePath(ILogKey key);
-    
-    /**
      * 根据日志事件确定日志文件路径
      * 
      * @param event 日志事件
-     * @return 日志文件路径
+     * @return 日志文件路径键
      */
-    String determineLogFilePath(LogEvent event);
+    PathKey determineLogFilePath(LogEvent event);
 
     /**
      * 根据日志事件确定所有需要写入的日志文件路径
@@ -39,20 +31,9 @@ public interface SmartFileRouter {
      * @param event 日志事件
      * @return 日志文件路径列表
      */
-    default java.util.List<String> determineLogFilePaths(LogEvent event) {
-        String path = determineLogFilePath(event);
-        if (path == null) {
-            return java.util.Collections.emptyList();
-        }
-        return java.util.Collections.singletonList(path);
+    default java.util.List<PathKey> determineLogFilePaths(LogEvent event) {
+        return java.util.Collections.emptyList();
     }
-    
-    /**
-     * 设置基础日志目录
-     * 
-     * @param baseDirectory 基础日志目录
-     */
-    void setBaseDirectory(String baseDirectory);
     
     /**
      * 初始化路由器

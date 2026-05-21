@@ -11,7 +11,7 @@
         <defaultLevel>INFO</defaultLevel>
 
         <!-- 默认日志文件输出目录（当 file appender 未显式定义 directory 时使用） -->
-        <defaultDirectory>./logs</defaultDirectory>
+        <rootDirectory>./logs</rootDirectory>
 
         <!-- 默认字符集（当 formatter 未显式指定时使用） -->
         <defaultCharset>UTF-8</defaultCharset>
@@ -87,7 +87,7 @@
         <!-- ===== Audit File Appender（JSON + 引用） ===== -->
         <file name="AUDIT_FILE">
 
-            <directory>./logs/json</directory>
+            <directory>/json</directory>
 
             <consoleEnabled>false</consoleEnabled>
 

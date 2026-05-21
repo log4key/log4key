@@ -184,7 +184,7 @@ public class Log4KeyConfiguration {
      * @return 默认目录
      */
     public String getDefaultDirectory() {
-        return structuredConfig.getGlobalConfig(ConfigKeys.DEFAULT_DIRECTORY_KEY);
+        return structuredConfig.getGlobalConfig(ConfigKeys.ROOT_DIRECTORY_KEY);
     }
 
     /**
@@ -566,7 +566,7 @@ public class Log4KeyConfiguration {
 
         // 添加默认配置字段
         mergedConfig.put(ConfigKeys.DEFAULT_ADMISSION_LEVEL, getDefaultAdmissionLevel());
-        mergedConfig.put(ConfigKeys.DEFAULT_DIRECTORY, getDefaultDirectory());
+        mergedConfig.put(ConfigKeys.ROOT_DIRECTORY, getDefaultDirectory());
 
         // 添加appender名称（必须设置，以便appender知道自己的名称）
         mergedConfig.put(ConfigKeys.APPENDER_NAME, appenderName);
@@ -599,8 +599,8 @@ public class Log4KeyConfiguration {
         }
 
         // 3. 应用默认值规则：如果appender配置未定义，则使用全局默认值
-        if (mergedConfig.containsKey(ConfigKeys.DEFAULT_DIRECTORY) && !mergedConfig.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
-            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, mergedConfig.get(ConfigKeys.DEFAULT_DIRECTORY));
+        if (mergedConfig.containsKey(ConfigKeys.ROOT_DIRECTORY) && !mergedConfig.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
+            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, mergedConfig.get(ConfigKeys.ROOT_DIRECTORY));
         }
 
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_OUTPUT_ADMISSION_LEVEL)) {

@@ -294,8 +294,8 @@ public final class ConfigAccumulator {
         }
 
         // 补充默认日志文件输出目录
-        if (!contains(ConfigKeys.DEFAULT_DIRECTORY_KEY)) {
-            with(ConfigKeys.DEFAULT_DIRECTORY_KEY, ConfigKeys.DEFAULT_DIRECTORY_KEY.defaultValue());
+        if (!contains(ConfigKeys.ROOT_DIRECTORY_KEY)) {
+            with(ConfigKeys.ROOT_DIRECTORY_KEY, ConfigKeys.ROOT_DIRECTORY_KEY.defaultValue());
         }
 
         // 补充默认字符集
@@ -362,29 +362,47 @@ public final class ConfigAccumulator {
     /**
      * 补充formatter配置
      * 参考默认配置文件log4key-default.xml，补充formatter相关的配置
+     * 仅在用户未定义同名formatter时才添加默认值，避免覆盖用户配置
      */
     private void supplementFormatterConfig() {
-        // 补充CONSOLE_DEFAULT formatter
-        formatter("CONSOLE_DEFAULT", formatter -> {
-            formatter.type("Text");
-            formatter.pattern("%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg");
-        });
+        // 补充CONSOLE_DEFAULT formatter（仅在不存在时）
+        if (!hasFormatter("CONSOLE_DEFAULT")) {
+            formatter("CONSOLE_DEFAULT", formatter -> {
+                formatter.type("Text");
+                formatter.pattern("%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg");
+            });
+        }
 
-        // 补充TEXT_DEFAULT formatter
-        formatter("TEXT_DEFAULT", formatter -> {
-            formatter.type("Text");
-            formatter.pattern("%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg%n");
-        });
+        // 补充TEXT_DEFAULT formatter（仅在不存在时）
+        if (!hasFormatter("TEXT_DEFAULT")) {
+            formatter("TEXT_DEFAULT", formatter -> {
+                formatter.type("Text");
+                formatter.pattern("%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg%n");
+            });
+        }
 
-        // 补充JSON_DEFAULT formatter
-        formatter("JSON_DEFAULT", formatter -> {
-            formatter.type("Json");
-            formatter.property("timestamp", "ISO8601");
-            formatter.property("includeLevel", true);
-            formatter.property("includeLogger", true);
-            formatter.property("includeThread", true);
-            formatter.property("includeMdc", true);
-        });
+        // 补充JSON_DEFAULT formatter（仅在不存在时）
+        if (!hasFormatter("JSON_DEFAULT")) {
+            formatter("JSON_DEFAULT", formatter -> {
+                formatter.type("Json");
+                formatter.property("timestamp", "ISO8601");
+                formatter.property("includeLevel", true);
+                formatter.property("includeLogger", true);
+                formatter.property("includeThread", true);
+                formatter.property("includeMdc", true);
+            });
+        }
+    }
+
+    /**
+     * 检查指定名称的formatter是否已经存在
+     * 通过检查 formatters.{name}.type 键是否存在来判断
+     *
+     * @param name formatter名称
+     * @return 如果已存在返回true，否则返回false
+     */
+    private boolean hasFormatter(String name) {
+        return contains(new ConfigKey<>(ConfigKeys.FORMATTERS_PREFIX + name + ".type", String.class, null));
     }
 
     /**

@@ -475,7 +475,7 @@ public class DefaultConfigValidator implements ConfigValidator {
             String keyName = key.name();
             if (keyName.equals(ConfigKeys.DEFAULT_ADMISSION_LEVEL_KEY.name())) {
                 hasDefaultAdmissionLevel = true;
-            } else if (keyName.equals(ConfigKeys.DEFAULT_DIRECTORY_KEY.name())) {
+            } else if (keyName.equals(ConfigKeys.ROOT_DIRECTORY_KEY.name())) {
                 hasDefaultDirectory = true;
             } else if (keyName.equals(ConfigKeys.DEFAULT_CHARSET_KEY.name())) {
                 hasDefaultCharset = true;
@@ -507,14 +507,14 @@ public class DefaultConfigValidator implements ConfigValidator {
         if (!hasDefaultDirectory) {
             results.add(new ValidationResult(
                     false,
-                    "Missing required configuration: defaultDirectory",
-                    "defaultDirectory"
+                    "Missing required configuration: rootDirectory",
+                    "rootDirectory"
             ));
         } else {
             results.add(new ValidationResult(
                     true,
-                    "Valid defaultDirectory configuration",
-                    "defaultDirectory"
+                    "Valid rootDirectory configuration",
+                    "rootDirectory"
             ));
         }
 

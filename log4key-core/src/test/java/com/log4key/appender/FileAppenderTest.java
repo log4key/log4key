@@ -3,6 +3,7 @@ package com.log4key.appender;
 import com.log4key.api.LogEvent;
 import com.log4key.api.LogEventBuilder;
 import com.log4key.api.router.SmartFileRouter;
+import com.log4key.path.PathKey;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -11,7 +12,6 @@ import org.mockito.MockitoAnnotations;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,8 +24,6 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.nio.charset.StandardCharsets;
@@ -59,17 +57,16 @@ public class FileAppenderTest {
         
         // 设置mock的文件路由器
         // FileAppender调用的是determineLogFilePaths(复数)，不是determineLogFilePath(单数)
-        List<String> paths = Collections.singletonList(TEST_DIR + File.separator + "test.log");
+        List<PathKey> paths = Collections.singletonList(new PathKey(TEST_DIR, "test.log"));
         when(mockFileRouter.determineLogFilePaths(any(LogEvent.class))).thenReturn(paths);
         doNothing().when(mockFileRouter).initialize();
-        doNothing().when(mockFileRouter).setBaseDirectory(anyString());
         
         // 使用反射设置mock的router（或者在实际代码中提供setter方法）
         appender.setFileRouter(mockFileRouter);
         
         // 初始化appender
         Map<String, Object> config = new HashMap<>();
-        config.put("baseDirectory", TEST_DIR);
+        config.put("rootDirectory", TEST_DIR);
         appender.initialize(config);
     }
 
@@ -97,7 +94,6 @@ public class FileAppenderTest {
     @Test
     public void testInitialize() {
         // 验证初始化
-        verify(mockFileRouter).setBaseDirectory(TEST_DIR);
         verify(mockFileRouter).initialize();
         
         // 验证名称
@@ -105,7 +101,7 @@ public class FileAppenderTest {
     }
 
     @Test
-    public void testAppendSingleEvent() throws IOException {
+    public void testAppendSingleEvent() {
         // 创建测试事件
         LogEvent event = createTestEvent("Single test message");
         
@@ -126,7 +122,7 @@ public class FileAppenderTest {
     }
 
     @Test
-    public void testAppendBatchEvents() throws IOException {
+    public void testAppendBatchEvents() {
         // 创建多个测试事件
         List<LogEvent> events = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
@@ -153,7 +149,7 @@ public class FileAppenderTest {
     }
 
     @Test
-    public void testAppendWithException() throws IOException {
+    public void testAppendWithException() {
         // 创建包含异常的测试事件
         Exception ex = new RuntimeException("Test exception");
         
@@ -180,7 +176,7 @@ public class FileAppenderTest {
     }
 
     @Test
-    public void testMultiThreadedAppend() throws InterruptedException, IOException {
+    public void testMultiThreadedAppend() throws InterruptedException {
         // 创建多线程测试
         int threadCount = 5;
         int eventsPerThread = 10;
@@ -227,7 +223,7 @@ public class FileAppenderTest {
     }
 
     @Test
-    public void testClose() throws IOException {
+    public void testClose() {
         // 写入一些内容
         appender.append(createTestEvent("Message before close"));
         
@@ -245,7 +241,7 @@ public class FileAppenderTest {
     }
 
     @Test
-    public void testNullEventHandling() throws IOException {
+    public void testNullEventHandling() {
         // 尝试写入null事件，应该被忽略
         appender.append(null);
         
@@ -289,7 +285,7 @@ public class FileAppenderTest {
     private String readFileContent(String filePath) {
         StringBuilder contentBuilder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new FileInputStream(filePath), StandardCharsets.UTF_8))) {
+                new InputStreamReader(Files.newInputStream(Paths.get(filePath)), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 contentBuilder.append(line).append(System.lineSeparator());

@@ -77,9 +77,9 @@ public final class ConfigKeys {
     public static final String DEFAULT_CHARSET = "defaultCharset";
 
     /**
-     * 默认目录
+     * 根目录
      */
-    public static final String DEFAULT_DIRECTORY = "defaultDirectory";
+    public static final String ROOT_DIRECTORY = "rootDirectory";
 
     /**
      * 控制台启用开关
@@ -144,6 +144,11 @@ public final class ConfigKeys {
      * Appender目录
      */
     public static final String APPENDER_DIRECTORY = "directory";
+
+    /**
+     * Appender文件名
+     */
+    public static final String APPENDER_FILE_NAME = "fileName";
 
     /**
      * Appender字符集
@@ -257,10 +262,10 @@ public final class ConfigKeys {
         new ConfigKey<>(DEFAULT_ADMISSION_LEVEL, String.class, "INFO");
 
     /**
-     * 默认目录（语义化键）
+     * 根目录（语义化键）
      */
-    public static final ConfigKey<String> DEFAULT_DIRECTORY_KEY =
-        new ConfigKey<>(DEFAULT_DIRECTORY, String.class, "./logs");
+    public static final ConfigKey<String> ROOT_DIRECTORY_KEY =
+        new ConfigKey<>(ROOT_DIRECTORY, String.class, "./logs");
 
     /**
      * 包含位置信息开关（语义化键）
@@ -285,6 +290,12 @@ public final class ConfigKeys {
      */
     public static final ConfigKey<String> APPENDER_DIRECTORY_KEY =
         new ConfigKey<>(APPENDER_DIRECTORY, String.class, null);
+
+    /**
+     * Appender文件名（语义化键）
+     */
+    public static final ConfigKey<String> APPENDER_FILE_NAME_KEY =
+        new ConfigKey<>(APPENDER_FILE_NAME, String.class, "{key}.log");
 
     /**
      * Appender字符集（语义化键）
@@ -412,7 +423,7 @@ public final class ConfigKeys {
         // 全局配置键
         allKeys.put(DEFAULT_CHARSET_KEY.name(), DEFAULT_CHARSET_KEY);
         allKeys.put(DEFAULT_ADMISSION_LEVEL_KEY.name(), DEFAULT_ADMISSION_LEVEL_KEY);
-        allKeys.put(DEFAULT_DIRECTORY_KEY.name(), DEFAULT_DIRECTORY_KEY);
+        allKeys.put(ROOT_DIRECTORY_KEY.name(), ROOT_DIRECTORY_KEY);
         allKeys.put(EXECUTOR_THREADS_SIZE_KEY.name(), EXECUTOR_THREADS_SIZE_KEY);
         allKeys.put(EXECUTOR_TYPE_KEY.name(), EXECUTOR_TYPE_KEY);
         allKeys.put(EXECUTOR_QUEUE_SIZE_KEY.name(), EXECUTOR_QUEUE_SIZE_KEY);
@@ -427,6 +438,7 @@ public final class ConfigKeys {
         allKeys.put(APPENDER_TYPE_KEY.name(), APPENDER_TYPE_KEY);
         allKeys.put(APPENDER_NAME_KEY.name(), APPENDER_NAME_KEY);
         allKeys.put(APPENDER_DIRECTORY_KEY.name(), APPENDER_DIRECTORY_KEY);
+        allKeys.put(APPENDER_FILE_NAME_KEY.name(), APPENDER_FILE_NAME_KEY);
         allKeys.put(APPENDER_CHARSET_KEY.name(), APPENDER_CHARSET_KEY);
         allKeys.put(APPENDER_FORMATTER_KEY.name(), APPENDER_FORMATTER_KEY);
         allKeys.put(WRITER_IDLE_TIMEOUT_KEY.name(), WRITER_IDLE_TIMEOUT_KEY);

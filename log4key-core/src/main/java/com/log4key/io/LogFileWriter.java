@@ -295,6 +295,24 @@ public class LogFileWriter implements AutoCloseable {
     }
 
     /**
+     * 使用PathKey构造日志文件写入器。
+     *
+     * Constructor with PathKey.
+     *
+     * @param pathKey 路径键，包含完整目录路径和文件名
+     * @param bufferSize 缓冲区大小（字节）
+     * @param maxFileSize 最大文件大小（字节）
+     * @param rollingPolicy 滚动策略
+     * @param rollingInterval 滚动时间间隔（毫秒）
+     * @param compressEnabled 是否启用压缩
+     * @param charset 字符编码
+     * @throws IOException 如果创建或打开文件失败
+     */
+    public LogFileWriter(com.log4key.path.PathKey pathKey, int bufferSize, long maxFileSize, RollingPolicy rollingPolicy, long rollingInterval, boolean compressEnabled, String charset) throws IOException {
+        this(Paths.get(pathKey.getDir(), pathKey.getFile()).toString(), bufferSize, maxFileSize, rollingPolicy, rollingInterval, compressEnabled, charset);
+    }
+
+    /**
      * Writes a log message.
      *
      * 写入日志消息。

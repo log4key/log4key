@@ -373,7 +373,7 @@ public class ConfigConverter {
 
         // 添加默认配置字段
         mergedConfig.put(ConfigKeys.DEFAULT_ADMISSION_LEVEL, config.getGlobalConfig(ConfigKeys.DEFAULT_ADMISSION_LEVEL_KEY));
-        mergedConfig.put(ConfigKeys.DEFAULT_DIRECTORY, config.getGlobalConfig(ConfigKeys.DEFAULT_DIRECTORY_KEY));
+        mergedConfig.put(ConfigKeys.ROOT_DIRECTORY, config.getGlobalConfig(ConfigKeys.ROOT_DIRECTORY_KEY));
         mergedConfig.put(ConfigKeys.DEFAULT_CHARSET, config.getGlobalConfig(ConfigKeys.DEFAULT_CHARSET_KEY));
 
         // 2. 然后添加appender专用配置
@@ -407,7 +407,7 @@ public class ConfigConverter {
             mergedConfig.put(ConfigKeys.APPENDER_OUTPUT_ADMISSION_LEVEL, config.getGlobalConfig(ConfigKeys.DEFAULT_ADMISSION_LEVEL_KEY));
         }
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
-            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, config.getGlobalConfig(ConfigKeys.DEFAULT_DIRECTORY_KEY));
+            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, config.getGlobalConfig(ConfigKeys.ROOT_DIRECTORY_KEY));
         }
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_CHARSET)) {
             mergedConfig.put(ConfigKeys.APPENDER_CHARSET, config.getGlobalConfig(ConfigKeys.DEFAULT_CHARSET_KEY));

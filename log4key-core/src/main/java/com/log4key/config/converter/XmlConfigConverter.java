@@ -120,7 +120,7 @@ public class XmlConfigConverter implements ConfigConverter {
         // 2. 根据键名推断类型
         if (key.endsWith(".level") || key.endsWith(".levelPolicy") ||
             key.endsWith(".type") || key.endsWith(".formatter") ||
-            key.endsWith(".charset") || key.endsWith(".directory") ||
+            key.endsWith(".charset") || key.endsWith(".directory") || key.endsWith(".fileName") ||
             key.endsWith(".pattern") || key.endsWith(".timestamp")) {
             return String.class;
         } else if (key.endsWith(".consoleEnabled") || key.endsWith(".asyncEnabled") ||

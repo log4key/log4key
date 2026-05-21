@@ -40,7 +40,7 @@ public class FileAppenderLevelInclusionTest {
 
         // Initialize appender with levelInclusion=true
         Map<String, Object> config = new HashMap<>();
-        config.put("baseDirectory", TEST_DIR);
+        config.put("rootDirectory", TEST_DIR);
         config.put("levelInclusion", true);
         config.put("appenderName", "testInclusion");
         config.put("asyncSupported", false); // Sync mode for easier testing

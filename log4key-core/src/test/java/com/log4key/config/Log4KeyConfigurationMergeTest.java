@@ -27,8 +27,8 @@ public class Log4KeyConfigurationMergeTest {
     public void testAppenderConfigOverrideBaseConfig() {
         // Load all config at once (loadFromMap replaces previous config, not merges)
         Map<String, Object> fullConfig = new HashMap<>();
-        // Base config
-        fullConfig.put("defaultDirectory", "./logs/base");
+        // Base config -- 使用 rootDirectory 而非 defaultDirectory，与 ConfigKeys.ROOT_DIRECTORY 一致
+        fullConfig.put("rootDirectory", "./logs/base");
         fullConfig.put("maxFileSizeMB", 50);
         fullConfig.put("maxBackupIndex", 5);
         fullConfig.put("rootLogger.appenders", "file");
@@ -57,7 +57,8 @@ public class Log4KeyConfigurationMergeTest {
     public void testConsoleAppenderUsesBaseConfig() {
         // 1. Set base config with complete appender definition
         Map<String, Object> baseConfig = new HashMap<>();
-        baseConfig.put("defaultDirectory", "./logs/base");
+        // 使用 rootDirectory 而非 defaultDirectory，与 ConfigKeys.ROOT_DIRECTORY 一致
+        baseConfig.put("rootDirectory", "./logs/base");
         baseConfig.put("maxFileSizeMB", 50);
         baseConfig.put("rootLogger.appenders", "console");
         // Define appender in base config

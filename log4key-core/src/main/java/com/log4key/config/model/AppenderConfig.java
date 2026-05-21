@@ -73,6 +73,12 @@ public class AppenderConfig {
     private String directory;
     
     /**
+     * 日志文件名
+     * 用于指定日志文件的名称
+     */
+    private String fileName;
+    
+    /**
      * 字符编码
      * 用于指定日志文件的字符编码
      */
@@ -159,6 +165,14 @@ public class AppenderConfig {
         this.directory = directory;
     }
 
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
     public String getCharset() {
         return charset;
     }
@@ -180,6 +194,7 @@ public class AppenderConfig {
                 ", outputAdmissionLevel='" + outputAdmissionLevel + "'" +
                 ", outputLevelPolicy=" + outputLevelPolicy +
                 ", directory='" + directory + "'" +
+                ", fileName='" + fileName + "'" +
                 ", charset='" + charset + "'" +
                 '}';
     }

@@ -57,7 +57,7 @@ public class InitializationTest {
         
         // 配置全局参数
         accumulator.global(ConfigKeys.DEFAULT_ADMISSION_LEVEL_KEY, "INFO");
-        accumulator.global(ConfigKeys.DEFAULT_DIRECTORY_KEY, "logs");
+        accumulator.global(ConfigKeys.ROOT_DIRECTORY_KEY, "logs");
         
         // 配置 formatter
         accumulator.formatter("TEXT_DEFAULT", formatter -> {

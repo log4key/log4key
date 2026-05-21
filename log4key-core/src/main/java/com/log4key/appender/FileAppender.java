@@ -14,11 +14,14 @@ import com.log4key.metrics.IoMetrics;
 import com.log4key.metrics.LogMetrics;
 import com.log4key.router.SmartFileRouterImpl;
 import com.log4key.io.LogFileWriter;
+import com.log4key.path.PathKey;
+import com.log4key.path.PathTemplate;
 import com.log4key.util.ConfigUtils;
 import com.log4key.config.model.OutputLevelPolicy;
 import com.log4key.internal.InternalLogger;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,7 +52,7 @@ public class FileAppender extends AbstractAppenderProvider {
     /**
      * 文件写入器映射，按文件路径缓存
      */
-    private final Map<String, LogFileWriter> fileWriters = new ConcurrentHashMap<>();
+    private final Map<PathKey, LogFileWriter> fileWriters = new ConcurrentHashMap<>();
 
     /**
      * 文件打开的最大缓存数量，默认 1024
@@ -116,7 +119,7 @@ public class FileAppender extends AbstractAppenderProvider {
     /**
      * 最后一次写入的文件路径
      */
-    private String lastFilePath;
+    private PathKey lastFilePath;
 
     /**
      * 构造函数
@@ -167,18 +170,38 @@ public class FileAppender extends AbstractAppenderProvider {
                 logger.debug("initialize() called, appenderName from config: " + this.appenderName);
             }
             logger.debug("final appenderName: " + this.appenderName);
-            // 设置日志目录
+            // 设置 rootDirectory（全局配置）
+            String rootDirectory = null;
+            if (config.containsKey(ConfigKeys.ROOT_DIRECTORY)) {
+                rootDirectory = String.valueOf(config.get(ConfigKeys.ROOT_DIRECTORY));
+            }
+            if (rootDirectory != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    ((SmartFileRouterImpl) fileRouter).setRootDirectory(rootDirectory);
+                }
+            }
+
+            // 设置 directory 模板（Appender 子目录）
             String directory = null;
             if (config.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
                 directory = String.valueOf(config.get(ConfigKeys.APPENDER_DIRECTORY));
             }
-            // 向后兼容：支持baseDirectory作为directory的别名
-            else if (config.containsKey("baseDirectory")) {
-                directory = String.valueOf(config.get("baseDirectory"));
+            if (directory != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    String normalizedDir = normalizeDirectoryPath(directory);
+                    ((SmartFileRouterImpl) fileRouter).setDirectoryTemplate(PathTemplate.compile(normalizedDir));
+                }
             }
 
-            if (directory != null) {
-                fileRouter.setBaseDirectory(directory);
+            // 设置 fileName 模板
+            String fileName = null;
+            if (config.containsKey(ConfigKeys.APPENDER_FILE_NAME)) {
+                fileName = String.valueOf(config.get(ConfigKeys.APPENDER_FILE_NAME));
+            }
+            if (fileName != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    ((SmartFileRouterImpl) fileRouter).setFileNameTemplate(PathTemplate.compile(fileName));
+                }
             }
 
             // 保存字符集配置
@@ -320,8 +343,8 @@ public class FileAppender extends AbstractAppenderProvider {
      */
     public void cleanIdleWriters(long currentTimeMillis) {
         // 先收集所有需要关闭的写入器，避免并发修改问题
-        List<String> idleFiles = new ArrayList<>();
-        for (Map.Entry<String, LogFileWriter> entry : fileWriters.entrySet()) {
+        List<PathKey> idleFiles = new ArrayList<>();
+        for (Map.Entry<PathKey, LogFileWriter> entry : fileWriters.entrySet()) {
             LogFileWriter writer = entry.getValue();
             if (writer.isIdle(currentTimeMillis, writerIdleTimeout)) {
                 idleFiles.add(entry.getKey());
@@ -329,15 +352,15 @@ public class FileAppender extends AbstractAppenderProvider {
         }
 
         // 关闭空闲的写入器并从map中移除
-        for (String filePath : idleFiles) {
+        for (PathKey pathKey : idleFiles) {
             try {
-                LogFileWriter writer = fileWriters.remove(filePath);
+                LogFileWriter writer = fileWriters.remove(pathKey);
                 if (writer != null) {
                     writer.close();
-                    logger.debug("Cleaned idle log file writer for " + filePath);
+                    logger.debug("Cleaned idle log file writer for " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString());
                 }
             } catch (Exception e) {
-                logger.warn("Error closing idle log file writer for " + filePath + ": " + e.getMessage());
+                logger.warn("Error closing idle log file writer for " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString() + ": " + e.getMessage());
             }
         }
     }
@@ -350,19 +373,19 @@ public class FileAppender extends AbstractAppenderProvider {
     public void shutdownAllFileWriters() {
         logger.debug(String.format("[%s] 开始关闭所有文件写入器，共%d个...", appenderName, fileWriters.size()));
         // 创建副本以避免ConcurrentModificationException
-        Map<String, LogFileWriter> writersToClose = new java.util.HashMap<>(fileWriters);
+        Map<PathKey, LogFileWriter> writersToClose = new java.util.HashMap<>(fileWriters);
         fileWriters.clear();
 
         // 关闭所有文件写入器
-        for (Map.Entry<String, LogFileWriter> entry : writersToClose.entrySet()) {
+        for (Map.Entry<PathKey, LogFileWriter> entry : writersToClose.entrySet()) {
             try {
-                String filePath = entry.getKey();
+                PathKey pathKey = entry.getKey();
                 LogFileWriter writer = entry.getValue();
-                logger.debug(String.format("[%s] 关闭文件写入器: %s", appenderName, filePath));
+                logger.debug(String.format("[%s] 关闭文件写入器: %s", appenderName, Paths.get(pathKey.getDir(), pathKey.getFile()).toString()));
                 writer.shutdown();
-                logger.debug(String.format("[%s] 文件写入器关闭成功: %s", appenderName, filePath));
+                logger.debug(String.format("[%s] 文件写入器关闭成功: %s", appenderName, Paths.get(pathKey.getDir(), pathKey.getFile()).toString()));
             } catch (Exception e) {
-                logger.warn(String.format("[%s] 关闭文件写入器失败: %s: %s", appenderName, entry.getKey(), e.getMessage()));
+                logger.warn(String.format("[%s] 关闭文件写入器失败: %s: %s", appenderName, Paths.get(entry.getKey().getDir(), entry.getKey().getFile()).toString(), e.getMessage()));
             }
         }
 
@@ -402,10 +425,29 @@ public class FileAppender extends AbstractAppenderProvider {
             // 使用默认值
             this.appenderName = ConfigKeys.APPENDER_NAME_KEY.defaultValue();
 
-            // 设置目录
+            // 设置 rootDirectory
+            String defaultRootDirectory = ConfigKeys.ROOT_DIRECTORY_KEY.defaultValue();
+            if (defaultRootDirectory != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    ((SmartFileRouterImpl) fileRouter).setRootDirectory(defaultRootDirectory);
+                }
+            }
+
+            // 设置 directory 模板
             String defaultDirectory = ConfigKeys.APPENDER_DIRECTORY_KEY.defaultValue();
             if (defaultDirectory != null) {
-                fileRouter.setBaseDirectory(defaultDirectory);
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    String normalizedDir = normalizeDirectoryPath(defaultDirectory);
+                    ((SmartFileRouterImpl) fileRouter).setDirectoryTemplate(PathTemplate.compile(normalizedDir));
+                }
+            }
+
+            // 设置 fileName 模板
+            String defaultFileName = ConfigKeys.APPENDER_FILE_NAME_KEY.defaultValue();
+            if (defaultFileName != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    ((SmartFileRouterImpl) fileRouter).setFileNameTemplate(PathTemplate.compile(defaultFileName));
+                }
             }
 
             this.charset = ConfigKeys.APPENDER_CHARSET_KEY.defaultValue();
@@ -423,10 +465,29 @@ public class FileAppender extends AbstractAppenderProvider {
             // 使用类型安全的ConfigKey读取配置
             this.appenderName = config.get(ConfigKeys.APPENDER_NAME_KEY);
 
-            // 设置目录
+            // 设置 rootDirectory
+            String rootDirectory = config.get(ConfigKeys.ROOT_DIRECTORY_KEY);
+            if (rootDirectory != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    ((SmartFileRouterImpl) fileRouter).setRootDirectory(rootDirectory);
+                }
+            }
+
+            // 设置 directory 模板
             String directory = config.get(ConfigKeys.APPENDER_DIRECTORY_KEY);
             if (directory != null) {
-                fileRouter.setBaseDirectory(directory);
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    String normalizedDir = normalizeDirectoryPath(directory);
+                    ((SmartFileRouterImpl) fileRouter).setDirectoryTemplate(PathTemplate.compile(normalizedDir));
+                }
+            }
+
+            // 设置 fileName 模板
+            String fileName = config.get(ConfigKeys.APPENDER_FILE_NAME_KEY);
+            if (fileName != null) {
+                if (fileRouter instanceof SmartFileRouterImpl) {
+                    ((SmartFileRouterImpl) fileRouter).setFileNameTemplate(PathTemplate.compile(fileName));
+                }
             }
 
             // 设置字符集
@@ -482,18 +543,18 @@ public class FileAppender extends AbstractAppenderProvider {
      * 执行实际的日志写入操作（单条）
      */
     private void doAppend(LogEvent event) {
-        List<String> filePaths = determineFilePaths(event);
+        List<PathKey> filePaths = determineFilePaths(event);
         LogMetrics.recordFile(filePaths.size());
         String formattedLog = formatLogEvent(event);
-        for (String filePath : filePaths) {
+        for (PathKey pathKey : filePaths) {
             try {
                 // 获取或创建文件写入器
-                LogFileWriter writer = getOrCreateFileWriter(filePath);
+                LogFileWriter writer = getOrCreateFileWriter(pathKey);
                 if (writer != null) {
                     // 在此记录文件切换
-                    if (!filePath.equals(lastFilePath)) {
+                    if (!pathKey.equals(lastFilePath)) {
                         IoMetrics.recordFileSwitch();
-                        lastFilePath = filePath;
+                        lastFilePath = pathKey;
                     }
 
                     // 写入日志
@@ -506,7 +567,7 @@ public class FileAppender extends AbstractAppenderProvider {
                 }
             } catch (IOException e) {
                 errorCount.incrementAndGet();
-                logger.warn("Error writing log event to file " + filePath + ": " + e.getMessage());
+                logger.warn("Error writing log event to file " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString() + ": " + e.getMessage());
             }
         }
     }
@@ -516,30 +577,30 @@ public class FileAppender extends AbstractAppenderProvider {
      */
     private void doAppendBatch(List<LogEvent> events) {
         // 收集所有日志，不分 chunk
-        Map<String, List<String>> fileLogs = new LinkedHashMap<>(16);
+        Map<PathKey, List<String>> fileLogs = new LinkedHashMap<>(16);
         for (LogEvent event : events) {
-            List<String> filePaths = determineFilePaths(event);
+            List<PathKey> filePaths = determineFilePaths(event);
             LogMetrics.recordFile(filePaths.size());
             String formattedLog = formatLogEvent(event);
-            for (String filePath : filePaths) {
-                fileLogs.computeIfAbsent(filePath, k -> new ArrayList<>()).add(formattedLog);
+            for (PathKey pathKey : filePaths) {
+                fileLogs.computeIfAbsent(pathKey, k -> new ArrayList<>()).add(formattedLog);
             }
         }
 
         // 对每个文件批量写入（支持分片）
-        for (Map.Entry<String, List<String>> entry : fileLogs.entrySet()) {
-            String filePath = entry.getKey();
+        for (Map.Entry<PathKey, List<String>> entry : fileLogs.entrySet()) {
+            PathKey pathKey = entry.getKey();
             List<String> logs = entry.getValue();
             try {
-                LogFileWriter writer = getOrCreateFileWriter(filePath);
+                LogFileWriter writer = getOrCreateFileWriter(pathKey);
                 if (writer == null) {
                     continue;
                 }
 
                 // 在此记录文件切换
-                if (!filePath.equals(lastFilePath)) {
+                if (!pathKey.equals(lastFilePath)) {
                     IoMetrics.recordFileSwitch();
-                    lastFilePath = filePath;
+                    lastFilePath = pathKey;
                 }
 
                 // 批量分片写入
@@ -558,7 +619,7 @@ public class FileAppender extends AbstractAppenderProvider {
 
             } catch (IOException e) {
                 errorCount.incrementAndGet();
-                logger.warn("Error writing batch to " + filePath, e);
+                logger.warn("Error writing batch to " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString(), e);
             }
         }
     }
@@ -566,7 +627,7 @@ public class FileAppender extends AbstractAppenderProvider {
     /**
      * 确定日志文件路径列表
      */
-    private List<String> determineFilePaths(LogEvent event) {
+    private List<PathKey> determineFilePaths(LogEvent event) {
         // 直接使用日志事件确定文件路径
         return fileRouter.determineLogFilePaths(event);
     }
@@ -581,7 +642,7 @@ public class FileAppender extends AbstractAppenderProvider {
     /**
      * 获取或创建文件写入器
      */
-    private LogFileWriter getOrCreateFileWriter(String filePath) {
+    private LogFileWriter getOrCreateFileWriter(PathKey pathKey) {
         // 检查缓存大小，如果达到上限则清理空闲写入器
         if (fileWriters.size() >= maxFileWriters) {
             cleanIdleWriters(System.currentTimeMillis());
@@ -591,14 +652,14 @@ public class FileAppender extends AbstractAppenderProvider {
             }
         }
 
-        LogFileWriter writer = fileWriters.computeIfAbsent(filePath, path -> {
+        LogFileWriter writer = fileWriters.computeIfAbsent(pathKey, pk -> {
             try {
                 IoMetrics.recordFileWrite();
-                // 创建带有charset参数的LogFileWriter实例
-                return new LogFileWriter(path, 8192, 100 * 1024 * 1024, LogFileWriter.RollingPolicy.SIZE, 3600000, false, this.charset);
+                // 创建带有charset参数的LogFileWriter实例（PathKey版本）
+                return new LogFileWriter(pk, 8192, 100 * 1024 * 1024, LogFileWriter.RollingPolicy.SIZE, 3600000, false, this.charset);
             } catch (IOException e) {
                 errorCount.incrementAndGet();
-                logger.warn("Failed to create log file writer for path: " + path + ": " + e.getMessage());
+                logger.warn("Failed to create log file writer for path: " + Paths.get(pk.getDir(), pk.getFile()).toString() + ": " + e.getMessage());
                 return null; // 返回null，在调用处处理
             }
         });
@@ -607,10 +668,10 @@ public class FileAppender extends AbstractAppenderProvider {
         if (writer != null && writer.isClosed()) {
             // 使用removeIf确保原子性操作
             fileWriters.entrySet().removeIf(entry ->
-                entry.getKey().equals(filePath) && entry.getValue().isClosed()
+                entry.getKey().equals(pathKey) && entry.getValue().isClosed()
             );
             // 重新创建写入器
-            return getOrCreateFileWriter(filePath);
+            return getOrCreateFileWriter(pathKey);
         }
 
         return writer;
@@ -626,25 +687,45 @@ public class FileAppender extends AbstractAppenderProvider {
 
         if (toEvict > 0) {
             // 收集所有写入器
-            List<Map.Entry<String, LogFileWriter>> writers = new ArrayList<>(fileWriters.entrySet());
+            List<Map.Entry<PathKey, LogFileWriter>> writers = new ArrayList<>(fileWriters.entrySet());
 
             // 随机排序，简单处理
             java.util.Collections.shuffle(writers);
 
             // 清理多余的写入器
             for (int i = 0; i < toEvict && i < writers.size(); i++) {
-                Map.Entry<String, LogFileWriter> entry = writers.get(i);
+                Map.Entry<PathKey, LogFileWriter> entry = writers.get(i);
                 try {
                     LogFileWriter writer = fileWriters.remove(entry.getKey());
                     if (writer != null) {
                         writer.close();
-                        logger.debug("Evicted excess log file writer for " + entry.getKey());
+                        logger.debug("Evicted excess log file writer for " + Paths.get(entry.getKey().getDir(), entry.getKey().getFile()).toString());
                     }
                 } catch (Exception e) {
-                    logger.warn("Error closing excess log file writer for " + entry.getKey() + ": " + e.getMessage());
+                    logger.warn("Error closing excess log file writer for " + Paths.get(entry.getKey().getDir(), entry.getKey().getFile()).toString() + ": " + e.getMessage());
                 }
             }
         }
+    }
+
+    /**
+     * 规范化目录路径，确保与 rootDirectory 拼接后路径正确。
+     * 
+     * 规则：
+     * - directory 开头必须有 / 符，如果没有则添加
+     * - 保证 rootDirectory 与 directory 之间只有一个 / 符
+     *
+     * @param directory 原始目录路径模板
+     * @return 规范化后的目录路径模板
+     */
+    private static String normalizeDirectoryPath(String directory) {
+        if (directory == null || directory.isEmpty()) {
+            return directory;
+        }
+        if (!directory.startsWith("/") && !directory.startsWith("\\")) {
+            return "/" + directory;
+        }
+        return directory;
     }
 
 }

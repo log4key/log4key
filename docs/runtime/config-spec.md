@@ -38,7 +38,7 @@ The <configuration> section defines system-wide behavior.
 | Key                | Type    | Default | Description                                               |
 | ------------------ | ------- | ------- | --------------------------------------------------------- |
 | defaultLevel       | string  | INFO    | Default admission level when no logger level is specified |
-| defaultDirectory   | string  | ./logs  | Default directory for file-based appenders                |
+| rootDirectory      | string  | ./logs  | Root directory for all file-based appenders                |
 | defaultCharset     | string  | UTF-8   | Default output encoding                                   |
 | executor.threads   | int     | 4       | Number of async worker threads                            |
 | executor.queueSize | int     | 8192    | Maximum async queue size                                  |
@@ -129,15 +129,38 @@ No additional properties are required.
 
 Writes logs to files.
 
-| Property    | Type   | Description       |
-| ----------- | ------ | ----------------- |
-| directory   | string | output directory  |
-| levelPolicy | string | EXACT or AT_LEAST |
+| Property    | Type   | Description                                          |
+| ----------- | ------ | ---------------------------------------------------- |
+| directory   | string | sub-directory template under rootDirectory            |
+| fileName    | string | file name template, default: {key}.log                |
+| levelPolicy | string | EXACT or AT_LEAST                                    |
 
 levelPolicy controls how levels are matched:
 
 * AT_LEAST → includes higher levels
 * EXACT → only exact match
+
+---
+
+### Path Templates
+
+Both `directory` and `fileName` support placeholders:
+
+| Placeholder | Description              |
+| ----------- | ------------------------ |
+| {date}      | Date in yyyyMMdd format  |
+| {level}     | Log level (lowercase)    |
+| {key}       | Business log key. Falls back to level (lowercase) when key is null/empty |
+
+Example:
+
+rootDirectory = ./logs
+directory = {level}/{date}
+fileName = {key}.log
+
+→ final path: ./logs/info/20260519/order-1001.log
+
+> The `{key}` fallback to level applies to both `directory` and `fileName` templates simultaneously. If both templates contain `{key}`, a log with no key will have the level value appear in both locations.
 
 ---
 

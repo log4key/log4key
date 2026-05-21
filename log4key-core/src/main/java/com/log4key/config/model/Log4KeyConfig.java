@@ -87,7 +87,7 @@ public class Log4KeyConfig {
     private void initDefaultConfig() {
         // 设置全局配置
         accumulator = new ConfigAccumulator();
-        accumulator.with(ConfigKeys.DEFAULT_DIRECTORY_KEY, "./logs")
+        accumulator.with(ConfigKeys.ROOT_DIRECTORY_KEY, "./logs")
                 .with(ConfigKeys.DEFAULT_ADMISSION_LEVEL_KEY, "INFO")
                 .with(ConfigKeys.DEFAULT_CHARSET_KEY, "UTF-8")
                 .with(ConfigKeys.INCLUDE_LOCATION_KEY, true)
