@@ -35,6 +35,9 @@ This enables better isolation, observability, and scalability in multi-tenant or
 - 🔑 **Key-based routing**:   
   Route logs by any field (e.g., `user_id`, `env`, `cluster`)
 
+- 🗂️ **Flexible path templates**:  
+  Compose directory and file names using `{date}`, `{level}`, and `{key}`
+
 - 🎯 **Multi-target output**:  
   Write to multiple destinations simultaneously
 
@@ -104,7 +107,7 @@ gradlew\.bat :samples:log4key-quick-start:run
 After running, check the `logs` directory:
 
 ```text
-logs/info/yyyyMMdd/
+logs/info/20260521/
 ├─ info.log
 ├─ order-1001.log
 └─ order-1002.log
@@ -180,7 +183,7 @@ When you send a request to `/log/{userId}/{message}`, Log4Key routes the log to 
 
 
 ```text
-logs/info/yyyyMMdd/
+logs/info/20260521/
 ├─ info.log             # normal logs without a key
 └─ user-1001.log        # key-based logs for user-1001
 ```
@@ -287,6 +290,7 @@ It is designed to be **easy to understand**, **explicit in behavior**, and **pow
 
 * **Clear separation of concerns**: configuration / formatters / appenders / loggers
 * **Flexible log routing**: route logs by package and key
+* **Path template system**: compose directory and file names with `{date}`, `{level}`, `{key}`
 * **Appender-level control**: file appenders can optionally mirror logs to console
 * **Simple level filtering**: supports both `AT_LEAST` and `EXACT` policies
 * **No hidden behavior**: all outputs must be explicitly configured
@@ -301,7 +305,7 @@ It is designed to be **easy to understand**, **explicit in behavior**, and **pow
     <!-- Global Configuration -->
     <configuration>
         <defaultLevel>INFO</defaultLevel>
-        <defaultDirectory>./logs</defaultDirectory>
+        <rootDirectory>./logs</rootDirectory>
         <defaultCharset>UTF-8</defaultCharset>
 
         <executor>
@@ -334,7 +338,8 @@ It is designed to be **easy to understand**, **explicit in behavior**, and **pow
 
         <!-- Default File -->
         <file name="DEFAULT_FILE">
-            <directory>./logs/default</directory>
+            <directory>default/{level}/{date}</directory>
+            <fileName>{key}.log</fileName>
             <level>INFO</level>
 
             <!-- Level policy:
@@ -350,7 +355,8 @@ It is designed to be **easy to understand**, **explicit in behavior**, and **pow
 
         <!-- Business File -->
         <file name="BUSINESS_FILE">
-            <directory>./logs/business</directory>
+            <directory>business/{level}/{date}</directory>
+            <fileName>{key}.log</fileName>
             <level>WARN</level>
 
             <!-- Only WARN logs (no ERROR) -->
@@ -386,12 +392,14 @@ With the above configuration:
 ```text
 logs/
 ├─ default/
-│  └─ error/       
-│  └─ info/        # root logs (INFO and above)
-│  └─ warn/        
+│  ├─ error/20260521/
+│  ├─ info/20260521/     # root logs (INFO and above)
+│  └─ warn/20260521/
 └─ business/
-   └─ warn/        # only WARN logs from business package
+   └─ warn/20260521/     # only WARN logs from business package
 ```
+
+Each directory contains individual `.log` files named after the log key (e.g., `order-1001.log`).
 
 ### 4. Notes
 
@@ -399,6 +407,91 @@ logs/
 * JSON formatting is intentionally not built-in
   → users can plug in their own formatter if needed
 * This configuration can be used as a **production-ready baseline**
+
+### 5. Path Template Strategy
+
+Log4Key uses a composable path template system to determine where log files are written.
+
+#### Path Composition Rule
+
+```
+finalPath = rootDirectory + directory + fileName
+```
+
+| Component       | Scope    | Description |
+|-----------------|----------|-------------|
+| `rootDirectory` | Global   | Base directory for all log output. Defined once in `<configuration>`. |
+| `directory`     | Appender | Relative directory template under `rootDirectory`. Supports placeholders. |
+| `fileName`      | Appender | File name template. Defaults to `{key}.log` if not specified. |
+
+#### Placeholders
+
+| Placeholder | Description | Fallback |
+|-------------|-------------|----------|
+| `{date}`    | Date in `yyyyMMdd` format | — |
+| `{level}`   | Log level in lowercase | `info` (when level is null) |
+| `{key}`     | Business log key from `LogEvent.getKey()` | Falls back to the log level (lowercase) when key is null or empty |
+
+> **Important**: The `{key}` fallback to level applies to both `directory` and `fileName` templates simultaneously. When a log event has no key, the level value will appear in both the directory path and the file name if both templates contain `{key}`.
+
+#### Strategy Examples
+
+**Example A: Organize by level**
+
+```xml
+<directory>{level}/{date}</directory>
+<fileName>{key}.log</fileName>
+```
+
+Output structure:
+
+```text
+logs/
+└─ info/
+   └─ 20260521/
+      ├─ info.log
+      ├─ order-1001.log
+      └─ order-1002.log
+```
+
+---
+
+**Example B: Organize by business key**
+
+```xml
+<directory>{key}/{date}</directory>
+<fileName>app.log</fileName>
+```
+
+Output structure:
+
+```text
+logs/
+└─ order-1001/
+   └─ 20260521/
+      └─ app.log
+```
+
+---
+
+**Example C: Single daily file**
+
+```xml
+<directory>{date}</directory>
+<fileName>app.log</fileName>
+```
+
+Output structure:
+
+```text
+logs/
+└─ 20260521/
+   └─ app.log
+```
+
+---
+
+> ⚠️ **High-cardinality key risk**: When `{key}` is used in `fileName`, a large number of distinct keys will create many small files. It is generally recommended to place `{key}` in the `directory` template rather than `fileName` for high-cardinality scenarios.
 
 ---
 
