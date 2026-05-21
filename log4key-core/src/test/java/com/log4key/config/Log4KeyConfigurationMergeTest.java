@@ -8,6 +8,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * Test config merge logic: appender config should override base config
@@ -68,12 +69,14 @@ public class Log4KeyConfigurationMergeTest {
         baseConfig.put("formatters.text.type", "TextLogFormatter");
         config.loadFromMap(baseConfig);
         
-        // 2. Test config merge - console appender should use base config for directory
+        // 2. Test config merge - console appender should use base config for maxFileSizeMB
         Map<String, Object> mergedConfig = config.mergeAppenderConfig("console");
         assertNotNull("Merged config should not be null", mergedConfig);
         
-        // 3. Verify console appender uses base config for directory
-        assertEquals("./logs/base", mergedConfig.get("directory"));
+        // 3. 验证：当 appender 没有定义 directory 时，merged config 中没有这个键（SmartFileRouterImpl 会使用 ConfigKeys 的默认值）
+        assertNull(mergedConfig.get("directory"));
+        
+        // 验证：其他配置项（非 directory）正常合并
         assertEquals(50, mergedConfig.get("maxFileSizeMB"));
     }
 }
