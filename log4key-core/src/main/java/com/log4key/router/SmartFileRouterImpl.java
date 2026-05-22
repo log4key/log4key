@@ -122,17 +122,12 @@ public class SmartFileRouterImpl implements SmartFileRouter {
 
         ensureInitialized();
 
-        String originalKeyValue = event.getKey();
-        boolean isDefaultKey = (originalKeyValue == null || originalKeyValue.isEmpty());
-        String sanitizedKey = isDefaultKey ? null : sanitizeFileName(originalKeyValue);
-
         String originalLevel = event.getLevel();
         String eventLevel = (originalLevel != null) ? originalLevel.toLowerCase() : "info";
 
         Integer eventPriority = LEVEL_PRIORITY.get(eventLevel);
         if (eventPriority == null) {
-            String currentKey = isDefaultKey ? eventLevel : sanitizedKey;
-            return java.util.Collections.singletonList(buildPath(event, currentKey, eventLevel));
+            return java.util.Collections.singletonList(buildPath(event, eventLevel));
         }
 
         List<PathKey> paths = new ArrayList<>();
@@ -149,8 +144,7 @@ public class SmartFileRouterImpl implements SmartFileRouter {
             }
 
             if (currentPriority != null && eventPriority >= currentPriority) {
-                String currentKey = isDefaultKey ? level : sanitizedKey;
-                paths.add(buildPath(event, currentKey, level));
+                paths.add(buildPath(event, level));
             }
         }
 
@@ -306,43 +300,26 @@ public class SmartFileRouterImpl implements SmartFileRouter {
     }
 
     /**
-     * 从日志事件构建完整的日志文件绝对路径，支持覆盖 key 和 level。
+     * 从日志事件构建完整的日志文件绝对路径，支持覆盖日志级别。
      *
      * 用于在 AT_LEAST 策略下为不同级别生成不同的路径，避免创建多余的 LogEvent 对象。
+     * Key 的有效性和安全净化由 KeySegment 内部处理。
      *
-     * @param event 日志事件（提供 timestamp 等非关键信息）
-     * @param key 日志键值（已净化，用于 fileName 模板中的 {key} 占位符）
+     * @param event 日志事件（提供 key、timestamp 等信息）
      * @param level 日志级别（用于 directory/file 模板中的 {level}/{key} fallback）
      * @return 完整的日志文件绝对路径
      */
-    private PathKey buildPath(LogEvent event, String key, String level) {
+    private PathKey buildPath(LogEvent event, String level) {
         String dir = buildDir(event, level);
         while (dir.startsWith("/") || dir.startsWith("\\")) {
             dir = dir.substring(1);
         }
         Path fullDir = Paths.get(rootDirectory, dir);
-        String filePath = buildFile(event, key);
+        String filePath = buildFile(event, level);
 
         ensureDirectoryExists(fullDir);
 
         return new PathKey(fullDir.toString(), filePath);
-    }
-
-    /**
-     * Sanitizes file name by replacing illegal characters with underscores.
-     *
-     * 净化文件名，将非法字符替换为下划线。
-     *
-     * @param fileName the original file name / 原始文件名
-     * @return the sanitized file name / 净化后的文件名
-     */
-    private String sanitizeFileName(String fileName) {
-        if (fileName == null) {
-            return "null";
-        }
-        // 替换 Windows 和 Linux 文件系统中的非法字符
-        // < > : " / \ | ? *
-        return fileName.replaceAll("[<>:\"/\\\\|?*\\[\\]]", "_");
     }
 
     /**

@@ -7,18 +7,26 @@ package com.log4key.path;
 
 import com.log4key.api.LogEvent;
 
+import java.util.regex.Pattern;
+
 /**
  * Key path segment.
  *
- * Key路径片段，输出日志事件的主键值，fallback 到日志级别的小写形式。
+ * Key路径片段，输出日志事件的主键值（经过文件名安全净化），fallback 到日志级别的小写形式。
  */
 public class KeySegment implements Segment {
+
+    /**
+     * 文件名非法字符匹配模式，匹配后替换为下划线。
+     * 涵盖 Windows / Linux 文件系统中的非法字符：< > : " / \ | ? * [ ]
+     */
+    private static final Pattern ILLEGAL_FILENAME_CHARS = Pattern.compile("[<>:\"/\\\\|?*\\[\\]]");
 
     @Override
     public void append(StringBuilder sb, LogEvent e) {
         String key = e.getKey();
         if (key != null && !key.isEmpty()) {
-            sb.append(key);
+            sb.append(ILLEGAL_FILENAME_CHARS.matcher(key).replaceAll("_"));
         } else {
             String level = e.getLevel();
             if (level != null) {
@@ -33,7 +41,7 @@ public class KeySegment implements Segment {
      * Appends the key value to the StringBuilder, falling back to level (lowercase) if key is empty,
      * with an optional override for the level during fallback.
      *
-     * 将 key 值追加到 StringBuilder 中，key 为空时 fallback 到日志级别（小写），
+     * 将 key 值（经过文件名安全净化）追加到 StringBuilder 中，key 为空时 fallback 到日志级别（小写），
      * fallback 时支持覆盖日志级别。
      *
      * @param sb the StringBuilder to append to
@@ -44,7 +52,7 @@ public class KeySegment implements Segment {
     public void append(StringBuilder sb, LogEvent e, String overrideLevel) {
         String key = e.getKey();
         if (key != null && !key.isEmpty()) {
-            sb.append(key);
+            sb.append(ILLEGAL_FILENAME_CHARS.matcher(key).replaceAll("_"));
         } else {
             String level = overrideLevel != null ? overrideLevel : e.getLevel();
             if (level != null) {

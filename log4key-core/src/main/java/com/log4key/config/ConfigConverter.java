@@ -201,6 +201,9 @@ public class ConfigConverter {
             if (props.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
                 appenderConfig.setDirectory(getStringValue(props, ConfigKeys.APPENDER_DIRECTORY, ConfigKeys.APPENDER_DIRECTORY_KEY.defaultValue()));
             }
+            if (props.containsKey(ConfigKeys.APPENDER_FILE_NAME)) {
+                appenderConfig.setFileName(getStringValue(props, ConfigKeys.APPENDER_FILE_NAME, ConfigKeys.APPENDER_FILE_NAME_KEY.defaultValue()));
+            }
             if (props.containsKey(ConfigKeys.APPENDER_CHARSET)) {
                 appenderConfig.setCharset(getStringValue(props, ConfigKeys.APPENDER_CHARSET, ConfigKeys.APPENDER_CHARSET_KEY.defaultValue()));
             }
@@ -396,6 +399,9 @@ public class ConfigConverter {
             }
             if (appenderConfig.getDirectory() != null) {
                 mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, appenderConfig.getDirectory());
+            }
+            if (appenderConfig.getFileName() != null) {
+                mergedConfig.put(ConfigKeys.APPENDER_FILE_NAME, appenderConfig.getFileName());
             }
             if (appenderConfig.getCharset() != null) {
                 mergedConfig.put(ConfigKeys.APPENDER_CHARSET, appenderConfig.getCharset());

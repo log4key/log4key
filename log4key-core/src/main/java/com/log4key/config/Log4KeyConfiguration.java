@@ -591,6 +591,9 @@ public class Log4KeyConfiguration {
             if (appenderConfig.getDirectory() != null) {
                 mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, appenderConfig.getDirectory());
             }
+            if (appenderConfig.getFileName() != null) {
+                mergedConfig.put(ConfigKeys.APPENDER_FILE_NAME, appenderConfig.getFileName());
+            }
             if (appenderConfig.getCharset() != null) {
                 mergedConfig.put(ConfigKeys.APPENDER_CHARSET, appenderConfig.getCharset());
             }
