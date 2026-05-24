@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-05-24
+### Added
+- 添加 fileName 配置选项用于指定日志文件名模板
+
+### Changed
+- 重构路径模板引擎：支持 {date}、{level}、{key} 占位符动态生成日志路径
+- 将 defaultDirectory 重命名为 rootDirectory 并更新相关配置键
+
+### Removed
+- 移除 ShardingStrategy 分片策略相关功能
+
+---
+
 ## [0.1.4] - 2026-05-16
 ### Added
 - 新增 JsonSerializer SPI 接口，解耦 JSON 序列化依赖
