@@ -11,7 +11,7 @@
         <defaultLevel>INFO</defaultLevel>
 
         <!-- 默认日志文件输出目录（当 file appender 未显式定义 directory 时使用） -->
-        <defaultDirectory>./logs</defaultDirectory>
+        <rootDirectory>./logs</rootDirectory>
 
         <!-- 默认字符集（当 formatter 未显式指定时使用） -->
         <defaultCharset>UTF-8</defaultCharset>
@@ -70,8 +70,9 @@
         <!-- 文件 Appender 示例（使用 formatter 引用） -->
         <!-- Sample 文件 Appender 1 -->
         <file name="DEFAULT_FILE">
-            <!-- 指定此 Appender 的日志输出目录 -->
-            <directory>./logs/default</directory>
+            <!-- 缺省的的日志输出目录与文件名 -->
+<!--            <directory>/{level}/{date}</directory>-->
+<!--            <fileName>{key}.log</fileName>-->
 
             <!-- 输出级别 -->
             <level>INFO</level>
@@ -92,7 +93,8 @@
         <!-- Sample 文件 Appender 2 -->
         <file name="BUSINESS_FILE">
             <!-- 指定此 Appender 的日志输出目录 -->
-            <directory>./logs/business</directory>
+            <directory>/business/{key}/{date}</directory>
+            <fileName>{level}.log</fileName>
 
             <!-- 输出级别 -->
             <level>WARN</level>
@@ -110,7 +112,7 @@
         <!-- Sample 文件 Appender 3 -->
         <file name="JSON_FILE">
             <!-- 指定此 Appender 的日志输出目录 -->
-            <directory>./logs/json</directory>
+            <directory>/json</directory>
 
             <!-- 输出级别 -->
             <level>INFO</level>

@@ -26,8 +26,9 @@ public class ConfigSampleApplication {
 
         System.out.println("=== Log4Key Configuration Sample ===");
         System.out.println("Expected:");
-        System.out.println("- Default logs → ./logs/default");
+        System.out.println("- Default logs → ./logs/info");
         System.out.println("- Business WARN logs → ./logs/business");
+        System.out.println("- Json logs → ./logs/json");
 
         // 普通日志
         logger.info("This is an default log without key");
@@ -54,7 +55,7 @@ public class ConfigSampleApplication {
         JsonFormatterSample.log(message);
         JsonFormatterSample.log(orderKey, message);
 
-        System.out.println("Logs written. Check ./logs/default and ./logs/business and ./logs/json ");
+        System.out.println("Logs written. Check ./logs/info and ./logs/business and ./logs/json ");
 
         // Flush & shutdown (required for standalone apps).
         // In frameworks like Spring Boot or when using JVM shutdown hooks, this is handled automatically.
