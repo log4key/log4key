@@ -602,15 +602,8 @@ public class Log4KeyConfiguration {
         }
 
         // 3. 应用默认值规则：如果appender配置未定义，则使用全局默认值
-        if (mergedConfig.containsKey(ConfigKeys.ROOT_DIRECTORY) && !mergedConfig.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
-            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, mergedConfig.get(ConfigKeys.ROOT_DIRECTORY));
-        }
-
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_OUTPUT_ADMISSION_LEVEL)) {
             mergedConfig.put(ConfigKeys.APPENDER_OUTPUT_ADMISSION_LEVEL, getDefaultAdmissionLevel());
-        }
-        if (!mergedConfig.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
-            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, getDefaultDirectory());
         }
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_CHARSET)) {
             mergedConfig.put(ConfigKeys.APPENDER_CHARSET, getDefaultCharset());

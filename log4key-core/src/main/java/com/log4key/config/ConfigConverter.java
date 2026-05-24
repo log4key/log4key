@@ -412,9 +412,6 @@ public class ConfigConverter {
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_OUTPUT_ADMISSION_LEVEL)) {
             mergedConfig.put(ConfigKeys.APPENDER_OUTPUT_ADMISSION_LEVEL, config.getGlobalConfig(ConfigKeys.DEFAULT_ADMISSION_LEVEL_KEY));
         }
-        if (!mergedConfig.containsKey(ConfigKeys.APPENDER_DIRECTORY)) {
-            mergedConfig.put(ConfigKeys.APPENDER_DIRECTORY, config.getGlobalConfig(ConfigKeys.ROOT_DIRECTORY_KEY));
-        }
         if (!mergedConfig.containsKey(ConfigKeys.APPENDER_CHARSET)) {
             mergedConfig.put(ConfigKeys.APPENDER_CHARSET, config.getGlobalConfig(ConfigKeys.DEFAULT_CHARSET_KEY));
         }

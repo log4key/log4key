@@ -289,7 +289,7 @@ public final class ConfigKeys {
      * Appender目录（语义化键）
      */
     public static final ConfigKey<String> APPENDER_DIRECTORY_KEY =
-        new ConfigKey<>(APPENDER_DIRECTORY, String.class, null);
+        new ConfigKey<>(APPENDER_DIRECTORY, String.class, "{level}/{date}");
 
     /**
      * Appender文件名（语义化键）
