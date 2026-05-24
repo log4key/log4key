@@ -105,7 +105,9 @@ public class PathTemplateTest {
     @Test
     public void testApplyWithDate() {
         PathTemplate template = PathTemplate.compile("{date}");
-        long timestamp = 1716153600000L; // 2024-05-20
+        // 使用 UTC 中午 12:00:00 的时间戳，避免时区偏移导致日期跨越
+        // 1716206400000L = 2024-05-20 12:00:00 UTC，在任何时区下都显示为 2024-05-20
+        long timestamp = 1716206400000L; // 2024-05-20 12:00:00 UTC
         LogEvent event = createTestEvent("INFO", null, timestamp);
         String result = template.apply(event);
         assertEquals("20240520", result);
