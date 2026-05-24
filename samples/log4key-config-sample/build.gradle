@@ -7,9 +7,7 @@ version = '1.0.0'
 sourceCompatibility = '1.8'
 
 dependencies {
-//    implementation 'com.log4key:log4key-all:0.1.3'
-    implementation project(':log4key-api')
-    implementation project(':log4key-core')
+    implementation 'com.log4key:log4key-all:0.2.0'
     // Gson解析依赖
     implementation "com.google.code.gson:gson:2.10.1"
 }
