@@ -338,8 +338,9 @@ It is designed to be **easy to understand**, **explicit in behavior**, and **pow
 
         <!-- Default File -->
         <file name="DEFAULT_FILE">
-            <directory>default/{level}/{date}</directory>
-            <fileName>{key}.log</fileName>
+            <!-- 缺省的的日志输出目录与文件名 -->
+<!--            <directory>/{level}/{date}</directory>-->
+<!--            <fileName>{key}.log</fileName>-->
             <level>INFO</level>
 
             <!-- Level policy:
@@ -391,10 +392,9 @@ With the above configuration:
 
 ```text
 logs/
-├─ default/
-│  ├─ error/20260521/
-│  ├─ info/20260521/     # root logs (INFO and above)
-│  └─ warn/20260521/
+├─ error/20260521/
+├─ info/20260521/     # root logs (INFO and above)
+├─ warn/20260521/
 └─ business/
    └─ warn/20260521/     # only WARN logs from business package
 ```

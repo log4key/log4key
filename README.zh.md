@@ -270,6 +270,7 @@ Log4Key 提供灵活的 XML 配置系统，**易懂、行为显式、足够强�
 
 - **职责清晰**：配置 / 格式化器 / Appender / Logger 分离
 - **灵活路由**：可按包或 key 路由
+- **路径模板系统**：用 `{date}`、`{level}`、`{key}` 组合目录与文件名
 - **Appender 级别控制**：可选控制台镜像
 - **简单级别过滤**：支持 `AT_LEAST` 与 `EXACT`
 - **无隐藏行为**：所有输出需显式配置
@@ -282,7 +283,7 @@ Log4Key 提供灵活的 XML 配置系统，**易懂、行为显式、足够强�
   <!-- 全局配置 -->
   <configuration>
     <defaultLevel>INFO</defaultLevel>
-    <defaultDirectory>./logs</defaultDirectory>
+    <rootDirectory>./logs</rootDirectory>
     <defaultCharset>UTF-8</defaultCharset>
     <executor>
       <threads>4</threads>
@@ -310,7 +311,9 @@ Log4Key 提供灵活的 XML 配置系统，**易懂、行为显式、足够强�
     </console>
 
     <file name="DEFAULT_FILE">
-      <directory>./logs/default</directory>
+      <!-- 缺省的的日志输出目录与文件名 -->
+<!--            <directory>/{level}/{date}</directory>-->
+<!--            <fileName>{key}.log</fileName>-->
       <level>INFO</level>
       <levelPolicy>AT_LEAST</levelPolicy>
       <consoleEnabled>true</consoleEnabled>
@@ -318,7 +321,8 @@ Log4Key 提供灵活的 XML 配置系统，**易懂、行为显式、足够强�
     </file>
 
     <file name="BUSINESS_FILE">
-      <directory>./logs/business</directory>
+      <directory>business/{level}/{date}</directory>
+      <fileName>{key}.log</fileName>
       <level>WARN</level>
       <levelPolicy>EXACT</levelPolicy>
       <consoleEnabled>false</consoleEnabled>
@@ -343,19 +347,105 @@ Log4Key 提供灵活的 XML 配置系统，**易懂、行为显式、足够强�
 
 ```text
 logs/
-├─ default/
-│  └─ info/        # root 日志（INFO 及以上）
-│  └─ warn/
-│  └─ error/
+├─ error/20260521/
+├─ info/20260521/     # root 日志（INFO 及以上）
+├─ warn/20260521/
 └─ business/
-   └─ warn/        # 仅业务包 WARN 日志
+   └─ warn/20260521/   # 仅业务包 WARN 日志
 ```
+
+每个目录下包含按 key 命名的 `.log` 文件（例如 `order-1001.log`）。
 
 ### 4. 注意事项
 
 - 不必定义所有部分即可上手
 - JSON 格式化器未内置，可根据需要自行提供
 - 此配置可作为生产就绪的基础模板
+
+### 5. 路径模板策略
+
+Log4Key 使用组合式路径模板系统来决定日志文件的写入位置。
+
+#### 路径组合规则
+
+```
+finalPath = rootDirectory + directory + fileName
+```
+
+| 组件             | 作用域     | 说明 |
+|-----------------|-----------|------|
+| `rootDirectory` | 全局       | 所有日志输出的基准目录，在 `<configuration>` 中定义一次。 |
+| `directory`     | Appender  | `rootDirectory` 下的相对目录模板，支持占位符。 |
+| `fileName`      | Appender  | 文件名模板。未指定时默认为 `{key}.log`。 |
+
+#### 占位符
+
+| 占位符     | 描述                      | 后备值 |
+|-----------|---------------------------|--------|
+| `{date}`  | 日期，格式 `yyyyMMdd`       | —      |
+| `{level}` | 小写日志级别                | `info`（级别为 null 时） |
+| `{key}`   | 来自 `LogEvent.getKey()`  | key 为 null 或空时回退到级别（小写） |
+
+> **重要**：`{key}` 回退到级别同时对 `directory` 和 `fileName` 模板生效。当日志事件没有 key 时，如果两个模板都包含 `{key}`，级别值会同时出现在目录路径和文件名中。
+
+#### 策略示例
+
+**示例 A：按级别组织**
+
+```xml
+<directory>{level}/{date}</directory>
+<fileName>{key}.log</fileName>
+```
+
+输出结构：
+
+```text
+logs/
+└─ info/
+   └─ 20260521/
+      ├─ info.log
+      ├─ order-1001.log
+      └─ order-1002.log
+```
+
+---
+
+**示例 B：按业务 key 组织**
+
+```xml
+<directory>{key}/{date}</directory>
+<fileName>app.log</fileName>
+```
+
+输出结构：
+
+```text
+logs/
+└─ order-1001/
+   └─ 20260521/
+      └─ app.log
+```
+
+---
+
+**示例 C：每日单文件**
+
+```xml
+<directory>{date}</directory>
+<fileName>app.log</fileName>
+```
+
+输出结构：
+
+```text
+logs/
+└─ 20260521/
+   └─ app.log
+```
+
+---
+
+> ⚠️ **高基数 key 风险**：当 `{key}` 用于 `fileName` 时，大量不同的 key 将产生大量小文件。对于高基数场景，建议将 `{key}` 放在 `directory` 模板中而非 `fileName`。
 
 ***
 
