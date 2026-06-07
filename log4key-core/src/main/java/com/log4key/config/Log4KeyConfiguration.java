@@ -226,6 +226,46 @@ public class Log4KeyConfiguration {
     }
 
     /**
+     * 获取 Flush 字节阈值
+     * @return Flush 字节阈值
+     */
+    public int getBatchSize() {
+        return structuredConfig.getGlobalConfig(ConfigKeys.BATCH_SIZE_KEY);
+    }
+
+    /**
+     * 获取 Flush 时间间隔（毫秒）
+     * @return Flush 时间间隔（毫秒）
+     */
+    public long getFlushInterval() {
+        return structuredConfig.getGlobalConfig(ConfigKeys.FLUSH_INTERVAL_KEY);
+    }
+
+    /**
+     * 获取 Buffer 扩容回收阈值
+     * @return Buffer 扩容回收阈值
+     */
+    public int getHighWaterMark() {
+        return structuredConfig.getGlobalConfig(ConfigKeys.HIGH_WATER_MARK_KEY);
+    }
+
+    /**
+     * 获取 StringBuilder 初始容量
+     * @return StringBuilder 初始容量
+     */
+    public int getInitialBufferSize() {
+        return structuredConfig.getGlobalConfig(ConfigKeys.INITIAL_BUFFER_SIZE_KEY);
+    }
+
+    /**
+     * 获取最大文件写入器数量（作为 maxOpenChannels 上限值使用）
+     * @return 最大文件写入器数量
+     */
+    public int getMaxFileWriters() {
+        return structuredConfig.getGlobalConfig(ConfigKeys.MAX_FILE_WRITERS_KEY);
+    }
+
+    /**
      * 获取root logger关联的所有Appender配置对象
      * @return Appender配置对象列表，如果root logger没有配置appender则返回空列表
      */

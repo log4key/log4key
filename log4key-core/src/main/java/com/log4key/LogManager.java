@@ -22,10 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
+import com.log4key.metrics.IoMetrics;
 import com.log4key.metrics.LogMetrics;
 import com.log4key.util.LogExecutor;
 import com.log4key.util.LogExecutorFactory;
@@ -87,11 +85,6 @@ public class LogManager {
      * 执行器控制器，负责管理主执行器和降级执行器
      */
     private ExecutorController executorController;
-
-    /**
-     * 日志清理器执行器
-     */
-    private ScheduledExecutorService CLEANER_EXECUTOR;
 
     /**
      * 关闭钩子线程
@@ -209,11 +202,12 @@ public class LogManager {
     }
 
     /**
-     * Processes a log event.
-     *
      * 处理日志事件。
      *
-     * @param event the log event to process / 要处理的日志事件
+     * V2 架构：format + route + shard 在 Business Thread 同步完成，
+     * 仅最终 write 操作通过 Appender 内部异步投递到 Worker。
+     *
+     * @param event 要处理的日志事件
      */
     public void processLogEvent(LogEvent event) {
         // 检查是否正在关闭
@@ -221,35 +215,15 @@ public class LogManager {
             return;
         }
 
-        // 记录日志事件数
+        // 记录日志事件数（IoMetrics 从 LogFileWriter.write() 迁移至此）
+        IoMetrics.recordEvent();
         LogMetrics.recordEvent();
 
-        // 获取日志主键
-        String key = event.getLogKey() != null ? event.getLogKey().toString() : event.getLoggerName();
-
-        // 使用执行器控制器执行任务
-        if (executorController != null) {
-            try {
-                executorController.execute(key, () -> {
-                    try {
-                        dispatchEvent(event);
-                    } catch (Exception e) {
-                        // 异步任务中发生异常不会影响主线程
-                    }
-                });
-                return;
-            } catch (Exception e) {
-                // 执行器控制器发生异常，直接同步处理
-                logger.warn("Executor controller error, falling back to synchronous execution: {}", e.getMessage());
-            }
-        }
-
-        // 执行器控制器不可用，直接同步处理
+        // 同步分发事件到 Appender（format + route + shard 在调用线程完成）
         try {
             dispatchEvent(event);
         } catch (Exception e) {
-            // 同步处理也发生异常，记录错误
-            logger.warn("Synchronous execution error, discarding log event: {}", e.getMessage());
+            logger.warn("Log event dispatch error: {}", e.getMessage());
         }
     }
 
@@ -276,23 +250,13 @@ public class LogManager {
         // 初始化格式化器
         initFormatters();
 
-        // 初始化Appender
-        initAppenders();
-
-        // 初始化异步执行器和二级降级执行器管理器（在Appender初始化后）
+        // 初始化异步执行器和二级降级执行器管理器（在 Appender 初始化前创建 WorkerGroup）
         initExecutors();
 
-        // 初始化文件关闭执行器
-        if (CLEANER_EXECUTOR == null) {
-            CLEANER_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "log4key-file-cleaner");
-                t.setDaemon(true);
-                return t;
-            });
-        }
-        CLEANER_EXECUTOR.scheduleWithFixedDelay(this::cleanIdleWriters, 5, 5, TimeUnit.MINUTES);
+        // 初始化 Appender（注入 executorController 到 FileAppender）
+        initAppenders();
 
-        // 注册JVM关闭钩子
+        // 注册 JVM 关闭钩子
         registerShutdownHook();
 
         // 标记初始化完成
@@ -477,6 +441,17 @@ public class LogManager {
                     appender.initialize(mergedConfig);
                     logger.debug("[LogManager-DEBUG] Appender initialized, name: {}", appender.getName());
 
+                    // 注入 executorController 到 FileAppender
+                    if (appender instanceof FileAppender && executorController != null) {
+                        ((FileAppender) appender).setExecutorController(executorController);
+                        // 注入 workerCount（从 WorkerGroup 获取，可能已被修正为 2 的幂）
+                        if (executorController.getMainExecutor() instanceof com.log4key.worker.WorkerGroup) {
+                            int workerCount = ((com.log4key.worker.WorkerGroup) executorController.getMainExecutor()).getWorkerCount();
+                            ((FileAppender) appender).setWorkerCount(workerCount);
+                        }
+                        logger.debug("[LogManager-DEBUG] Injected executorController into FileAppender: {}", appender.getName());
+                    }
+
                     // 启动appender
                     logger.debug("[LogManager-DEBUG] Starting appender");
                     appender.start();
@@ -564,18 +539,6 @@ public class LogManager {
     }
 
     /**
-     * 文件关闭执行器，用于关闭文件写入器中空闲的日志
-     */
-    private void cleanIdleWriters() {
-        long currentTimeMillis = System.currentTimeMillis();
-        for (AppenderProvider appender : appenders) {
-            if (appender instanceof FileAppender) {
-                ((FileAppender) appender).cleanIdleWriters(currentTimeMillis);
-            }
-        }
-    }
-
-    /**
      * 注册JVM关闭钩子
      */
     private void registerShutdownHook() {
@@ -633,17 +596,6 @@ public class LogManager {
 
         // 清空 Appender 列表
         appenders.clear();
-
-        // 关闭清理执行器
-        try {
-            CLEANER_EXECUTOR.shutdown();
-            logger.debug("[LogManager] 关闭清理执行器...");
-        } catch (Exception e) {
-            CLEANER_EXECUTOR.shutdownNow();
-            logger.warn("[LogManager] 关闭清理执行器时发生异常，强制关闭");
-        } finally {
-            CLEANER_EXECUTOR = null;
-        }
 
         // 4. 关闭 JVM 钩子（如果存在）
         try {

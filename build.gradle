@@ -20,6 +20,7 @@ allprojects {
     targetCompatibility = JavaVersion.VERSION_1_8
 
     compileJava.options.encoding = 'UTF-8'
+    compileTestJava.options.encoding = 'UTF-8'
 
     repositories {
         maven { url "https://repo.maven.apache.org/maven2" }

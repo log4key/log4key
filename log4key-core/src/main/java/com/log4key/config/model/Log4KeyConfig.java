@@ -96,7 +96,11 @@ public class Log4KeyConfig {
                 .with(ConfigKeys.EXECUTOR_TYPE_KEY, "KEY_BASED")
                 .with(ConfigKeys.EXECUTOR_THREADS_SIZE_KEY, 4)
                 .with(ConfigKeys.BUFFER_SIZE_KEY, 1024)
-                .with(ConfigKeys.EXECUTOR_QUEUE_SIZE_KEY, 8192);
+                .with(ConfigKeys.EXECUTOR_QUEUE_SIZE_KEY, 8192)
+                .with(ConfigKeys.BATCH_SIZE_KEY, 4096)
+                .with(ConfigKeys.FLUSH_INTERVAL_KEY, 1000L)
+                .with(ConfigKeys.HIGH_WATER_MARK_KEY, 32768)
+                .with(ConfigKeys.INITIAL_BUFFER_SIZE_KEY, 4096);
 
 //        accumulator = new ConfigAccumulator();
 //        accumulator.mergeFrom(globalConfig);

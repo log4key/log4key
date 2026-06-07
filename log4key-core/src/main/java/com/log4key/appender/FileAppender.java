@@ -10,27 +10,23 @@ import com.log4key.api.router.SmartFileRouter;
 import com.log4key.config.ConfigKeys;
 import com.log4key.config.resolver.ConfigResolver;
 import com.log4key.formatter.LogFormatterManager;
-import com.log4key.metrics.IoMetrics;
 import com.log4key.metrics.LogMetrics;
 import com.log4key.router.SmartFileRouterImpl;
-import com.log4key.io.LogFileWriter;
 import com.log4key.path.PathKey;
 import com.log4key.path.PathTemplate;
-import com.log4key.util.ConfigUtils;
+import com.log4key.util.ExecutorController;
 import com.log4key.config.model.OutputLevelPolicy;
 import com.log4key.internal.InternalLogger;
 
-import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * File-based log appender implementation.
  *
- * 文件输出目标实现。
+ * V2 架构：format + route + shard 在 Business Thread 同步完成，
+ * 仅最终 write 操作通过 executorController.executeWrite() 异步投递到 Worker。
  */
 public class FileAppender extends AbstractAppenderProvider {
 
@@ -50,16 +46,14 @@ public class FileAppender extends AbstractAppenderProvider {
     private SmartFileRouter fileRouter;
 
     /**
-     * 文件写入器映射，按文件路径缓存
+     * 执行器控制器，由 LogManager 初始化时注入
      */
-    private final Map<PathKey, LogFileWriter> fileWriters = new ConcurrentHashMap<>();
+    private ExecutorController executorController;
 
     /**
-     * 文件打开的最大缓存数量，默认 1024
-     * Linux 默认打开的文件描述符数量为1024，因此最多支持1024个文件写入器，
-     * 当超过时需要打开限制：ulimit -n
+     * Worker 数量（用于 shard 计算），由 LogManager 初始化时注入
      */
-    private int maxFileWriters = 1024;
+    private int workerCount;
 
     /**
      * 字符编码
@@ -77,29 +71,9 @@ public class FileAppender extends AbstractAppenderProvider {
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
-     * 是否自动刷新
-     */
-    private boolean autoFlush = true;
-
-    /**
-     * 刷新间隔（日志条数）
-     */
-    private int flushInterval = 100;
-
-    /**
-     * 刷新计数器
-     */
-    private final AtomicLong flushCounter = new AtomicLong(0);
-
-    /**
      * 运行状态标志
      */
     private final AtomicBoolean running = new AtomicBoolean(false);
-
-    /**
-     * 文件写入器空闲超时时间（毫秒），默认15分钟
-     */
-    private long writerIdleTimeout = 15 * 60 * 1000L;
 
     /**
      * 错误计数器
@@ -110,16 +84,6 @@ public class FileAppender extends AbstractAppenderProvider {
      * 日志格式化器名称，默认使用文本格式
      */
     private String formatterName = "text";
-
-    /**
-     * 批量处理最大大小，默认1000
-     */
-    private int maxBatchSize = 1000;
-
-    /**
-     * 最后一次写入的文件路径
-     */
-    private PathKey lastFilePath;
 
     /**
      * 构造函数
@@ -133,6 +97,36 @@ public class FileAppender extends AbstractAppenderProvider {
     @Override
     public String getName() {
         return appenderName;
+    }
+
+    /**
+     * 设置 ExecutorController（由 LogManager 初始化时注入）。
+     *
+     * @param executorController 执行器控制器
+     */
+    public void setExecutorController(ExecutorController executorController) {
+        this.executorController = executorController;
+    }
+
+    /**
+     * 设置 Worker 数量（由 LogManager 初始化时注入）。
+     *
+     * @param workerCount Worker 数量
+     */
+    public void setWorkerCount(int workerCount) {
+        this.workerCount = workerCount;
+    }
+
+    /**
+     * 根据 PathKey 计算目标 Worker 编号。
+     *
+     * 使用 hashCode 取模分配，确保同一 PathKey 始终路由到同一 Worker。
+     *
+     * @param pathKey 路径键
+     * @return Worker 编号（0 ~ workerCount-1）
+     */
+    private int shard(PathKey pathKey) {
+        return Math.abs(pathKey.hashCode()) & (workerCount - 1);
     }
 
     @Override
@@ -219,21 +213,6 @@ public class FileAppender extends AbstractAppenderProvider {
                 }
             }
 
-            // 配置文件写入器空闲超时时间
-            if (config.containsKey(ConfigKeys.WRITER_IDLE_TIMEOUT)) {
-                this.writerIdleTimeout = ConfigUtils.parseLong(config.get(ConfigKeys.WRITER_IDLE_TIMEOUT), this.writerIdleTimeout);
-            }
-
-            // 配置批量处理最大大小
-            if (config.containsKey(ConfigKeys.MAX_BATCH_SIZE)) {
-                this.maxBatchSize = ConfigUtils.parseInt(config.get(ConfigKeys.MAX_BATCH_SIZE), this.maxBatchSize);
-            }
-
-            // 配置文件写入器最大缓存数量
-            if (config.containsKey(ConfigKeys.MAX_FILE_WRITERS)) {
-                this.maxFileWriters = ConfigUtils.parseInt(config.get(ConfigKeys.MAX_FILE_WRITERS), this.maxFileWriters);
-            }
-
             // 配置输出级别控制
             if (config.containsKey("level")) {
                 setOutputAdmissionLevel(String.valueOf(config.get("level")));
@@ -309,8 +288,7 @@ public class FileAppender extends AbstractAppenderProvider {
 
     @Override
     public void flush() {
-        // 刷新所有文件写入器
-        fileWriters.values().forEach(LogFileWriter::flush);
+        // V2 架构：flush 由 Worker 内部管理，不再由 FileAppender 直接操作
     }
 
     @Override
@@ -323,75 +301,8 @@ public class FileAppender extends AbstractAppenderProvider {
         // 停止运行状态
         running.set(false);
 
-        // 关闭所有文件写入器
-        try {
-            shutdownAllFileWriters();
-        } catch (Exception e) {
-            logger.warn(String.format("[%s] 关闭所有文件写入器时发生异常: %s", appenderName, e.getMessage()));
-        }
-
         long endTime = System.currentTimeMillis();
         logger.debug(String.format("[%s] 关闭完成，当前时间: %s，耗时: %d毫秒", appenderName, new java.util.Date(endTime), (endTime - startTime)));
-    }
-
-    /**
-     * Cleans up idle file writers based on the given timestamp.
-     *
-     * 清理空闲的文件写入器。
-     *
-     * @param currentTimeMillis current timestamp in milliseconds / 当前时间戳（毫秒）
-     */
-    public void cleanIdleWriters(long currentTimeMillis) {
-        // 先收集所有需要关闭的写入器，避免并发修改问题
-        List<PathKey> idleFiles = new ArrayList<>();
-        for (Map.Entry<PathKey, LogFileWriter> entry : fileWriters.entrySet()) {
-            LogFileWriter writer = entry.getValue();
-            if (writer.isIdle(currentTimeMillis, writerIdleTimeout)) {
-                idleFiles.add(entry.getKey());
-            }
-        }
-
-        // 关闭空闲的写入器并从map中移除
-        for (PathKey pathKey : idleFiles) {
-            try {
-                LogFileWriter writer = fileWriters.remove(pathKey);
-                if (writer != null) {
-                    writer.close();
-                    logger.debug("Cleaned idle log file writer for " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString());
-                }
-            } catch (Exception e) {
-                logger.warn("Error closing idle log file writer for " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString() + ": " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Shuts down all file writers managed by this appender.
-     *
-     * 关闭所有文件写入器。
-     */
-    public void shutdownAllFileWriters() {
-        logger.debug(String.format("[%s] 开始关闭所有文件写入器，共%d个...", appenderName, fileWriters.size()));
-        // 创建副本以避免ConcurrentModificationException
-        Map<PathKey, LogFileWriter> writersToClose = new java.util.HashMap<>(fileWriters);
-        fileWriters.clear();
-
-        // 关闭所有文件写入器
-        for (Map.Entry<PathKey, LogFileWriter> entry : writersToClose.entrySet()) {
-            try {
-                PathKey pathKey = entry.getKey();
-                LogFileWriter writer = entry.getValue();
-                logger.debug(String.format("[%s] 关闭文件写入器: %s", appenderName, Paths.get(pathKey.getDir(), pathKey.getFile()).toString()));
-                writer.shutdown();
-                logger.debug(String.format("[%s] 文件写入器关闭成功: %s", appenderName, Paths.get(pathKey.getDir(), pathKey.getFile()).toString()));
-            } catch (Exception e) {
-                logger.warn(String.format("[%s] 关闭文件写入器失败: %s: %s", appenderName, Paths.get(entry.getKey().getDir(), entry.getKey().getFile()).toString(), e.getMessage()));
-            }
-        }
-
-        // 清空映射
-        fileWriters.clear();
-        logger.debug(String.format("[%s] 所有文件写入器已关闭，文件写入器映射已清空", appenderName));
     }
 
     /**
@@ -452,9 +363,6 @@ public class FileAppender extends AbstractAppenderProvider {
 
             this.charset = ConfigKeys.APPENDER_CHARSET_KEY.defaultValue();
             this.formatterName = ConfigKeys.APPENDER_FORMATTER_KEY.defaultValue();
-            this.writerIdleTimeout = ConfigKeys.WRITER_IDLE_TIMEOUT_KEY.defaultValue();
-            this.maxBatchSize = ConfigKeys.MAX_BATCH_SIZE_KEY.defaultValue();
-            this.maxFileWriters = ConfigKeys.MAX_FILE_WRITERS_KEY.defaultValue();
 
             // 验证格式化器是否存在
             if (LogFormatterManager.getInstance().getFormatter(this.formatterName) == null) {
@@ -502,15 +410,6 @@ public class FileAppender extends AbstractAppenderProvider {
                 this.formatterName = "text";
             }
 
-            // Long -> long (自动拆箱)
-            this.writerIdleTimeout = config.get(ConfigKeys.WRITER_IDLE_TIMEOUT_KEY);
-
-            // Integer -> int (自动拆箱)
-            this.maxBatchSize = config.get(ConfigKeys.MAX_BATCH_SIZE_KEY);
-
-            // 获取文件写入器最大缓存数量
-            this.maxFileWriters = config.get(ConfigKeys.MAX_FILE_WRITERS_KEY);
-
             // 设置输出级别控制
             String level = config.get(ConfigKeys.APPENDER_LEVEL_KEY);
             if (level != null) {
@@ -540,87 +439,45 @@ public class FileAppender extends AbstractAppenderProvider {
     }
 
     /**
-     * 执行实际的日志写入操作（单条）
+     * 执行实际的日志写入操作（单条）。
+     *
+     * V2 架构：format + route + shard 在 Business Thread 同步完成，
+     * 仅最终 write 通过 executorController.executeWrite() 异步投递到 Worker。
      */
     private void doAppend(LogEvent event) {
+        // LevelFilter 检查
+        if (!shouldOutput(event)) {
+            return;
+        }
+
+        // executorController 为 null 时跳过写入（不抛 NPE）
+        if (executorController == null) {
+            logger.warn("executorController is null, skipping write");
+            return;
+        }
+
+        // 格式化日志
+        String formattedLog = formatLogEvent(event);
+
+        // 确定文件路径
         List<PathKey> filePaths = determineFilePaths(event);
         LogMetrics.recordFile(filePaths.size());
-        String formattedLog = formatLogEvent(event);
+
+        // 对每个路径键，shard 后异步投递到 Worker
         for (PathKey pathKey : filePaths) {
-            try {
-                // 获取或创建文件写入器
-                LogFileWriter writer = getOrCreateFileWriter(pathKey);
-                if (writer != null) {
-                    // 在此记录文件切换
-                    if (!pathKey.equals(lastFilePath)) {
-                        IoMetrics.recordFileSwitch();
-                        lastFilePath = pathKey;
-                    }
-
-                    // 写入日志
-                    writer.write(formattedLog);
-
-                    // 根据配置决定是否刷新
-                    if (autoFlush || flushCounter.incrementAndGet() % flushInterval == 0) {
-                        writer.flush();
-                    }
-                }
-            } catch (IOException e) {
-                errorCount.incrementAndGet();
-                logger.warn("Error writing log event to file " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString() + ": " + e.getMessage());
-            }
+            int workerId = shard(pathKey);
+            executorController.executeWrite(String.valueOf(workerId), pathKey, formattedLog);
         }
     }
 
     /**
-     * 执行实际的日志写入操作（批量）
+     * 执行实际的日志写入操作（批量）。
+     *
+     * V2 架构：逐条处理后异步投递到 Worker。
      */
     private void doAppendBatch(List<LogEvent> events) {
-        // 收集所有日志，不分 chunk
-        Map<PathKey, List<String>> fileLogs = new LinkedHashMap<>(16);
         for (LogEvent event : events) {
-            List<PathKey> filePaths = determineFilePaths(event);
-            LogMetrics.recordFile(filePaths.size());
-            String formattedLog = formatLogEvent(event);
-            for (PathKey pathKey : filePaths) {
-                fileLogs.computeIfAbsent(pathKey, k -> new ArrayList<>()).add(formattedLog);
-            }
-        }
-
-        // 对每个文件批量写入（支持分片）
-        for (Map.Entry<PathKey, List<String>> entry : fileLogs.entrySet()) {
-            PathKey pathKey = entry.getKey();
-            List<String> logs = entry.getValue();
-            try {
-                LogFileWriter writer = getOrCreateFileWriter(pathKey);
-                if (writer == null) {
-                    continue;
-                }
-
-                // 在此记录文件切换
-                if (!pathKey.equals(lastFilePath)) {
-                    IoMetrics.recordFileSwitch();
-                    lastFilePath = pathKey;
-                }
-
-                // 批量分片写入
-                StringBuilder sb = new StringBuilder(maxBatchSize);
-                for (String log : logs) {
-                    if (sb.length() + log.length() > maxBatchSize && sb.length() > 0) {
-                        writer.write(sb.toString());
-                        sb.setLength(0);
-                    }
-                    sb.append(log);
-                }
-                // 写入剩余
-                if (sb.length() > 0) {
-                    writer.write(sb.toString());
-                }
-
-            } catch (IOException e) {
-                errorCount.incrementAndGet();
-                logger.warn("Error writing batch to " + Paths.get(pathKey.getDir(), pathKey.getFile()).toString(), e);
-            }
+            doAppend(event);
         }
     }
 
@@ -637,75 +494,6 @@ public class FileAppender extends AbstractAppenderProvider {
      */
     private String formatLogEvent(LogEvent event) {
         return LogFormatterManager.getInstance().format(event, formatterName);
-    }
-
-    /**
-     * 获取或创建文件写入器
-     */
-    private LogFileWriter getOrCreateFileWriter(PathKey pathKey) {
-        // 检查缓存大小，如果达到上限则清理空闲写入器
-        if (fileWriters.size() >= maxFileWriters) {
-            cleanIdleWriters(System.currentTimeMillis());
-            // 如果清理后仍然达到上限，尝试清理最旧的写入器
-            if (fileWriters.size() >= maxFileWriters) {
-                evictOldestWriters();
-            }
-        }
-
-        LogFileWriter writer = fileWriters.computeIfAbsent(pathKey, pk -> {
-            try {
-                IoMetrics.recordFileWrite();
-                // 创建带有charset参数的LogFileWriter实例（PathKey版本）
-                return new LogFileWriter(pk, 8192, 100 * 1024 * 1024, LogFileWriter.RollingPolicy.SIZE, 3600000, false, this.charset);
-            } catch (IOException e) {
-                errorCount.incrementAndGet();
-                logger.warn("Failed to create log file writer for path: " + Paths.get(pk.getDir(), pk.getFile()).toString() + ": " + e.getMessage());
-                return null; // 返回null，在调用处处理
-            }
-        });
-
-        // 检查写入器是否已经关闭，如果已关闭则移除并创建新的
-        if (writer != null && writer.isClosed()) {
-            // 使用removeIf确保原子性操作
-            fileWriters.entrySet().removeIf(entry ->
-                entry.getKey().equals(pathKey) && entry.getValue().isClosed()
-            );
-            // 重新创建写入器
-            return getOrCreateFileWriter(pathKey);
-        }
-
-        return writer;
-    }
-
-    /**
-     * 清理最旧的文件写入器，当缓存达到上限时使用
-     */
-    private void evictOldestWriters() {
-        // 计算需要清理的数量，保留90%的容量
-        int targetSize = (int) (maxFileWriters * 0.9);
-        int toEvict = fileWriters.size() - targetSize;
-
-        if (toEvict > 0) {
-            // 收集所有写入器
-            List<Map.Entry<PathKey, LogFileWriter>> writers = new ArrayList<>(fileWriters.entrySet());
-
-            // 随机排序，简单处理
-            java.util.Collections.shuffle(writers);
-
-            // 清理多余的写入器
-            for (int i = 0; i < toEvict && i < writers.size(); i++) {
-                Map.Entry<PathKey, LogFileWriter> entry = writers.get(i);
-                try {
-                    LogFileWriter writer = fileWriters.remove(entry.getKey());
-                    if (writer != null) {
-                        writer.close();
-                        logger.debug("Evicted excess log file writer for " + Paths.get(entry.getKey().getDir(), entry.getKey().getFile()).toString());
-                    }
-                } catch (Exception e) {
-                    logger.warn("Error closing excess log file writer for " + Paths.get(entry.getKey().getDir(), entry.getKey().getFile()).toString() + ": " + e.getMessage());
-                }
-            }
-        }
     }
 
     /**

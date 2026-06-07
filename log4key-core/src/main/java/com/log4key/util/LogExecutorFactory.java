@@ -5,85 +5,64 @@
  */
 package com.log4key.util;
 
+import com.log4key.config.ConfigKeys;
 import com.log4key.config.Log4KeyConfiguration;
+import com.log4key.worker.WorkerGroup;
 
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Log executor factory.
- *
  * 日志执行器工厂。
+ *
+ * 用于创建日志执行器实例，当前默认创建 WorkerGroup 作为主执行器。
  */
 public class LogExecutorFactory {
 
     /**
-     * 执行器类型枚举
+     * 根据配置创建 WorkerGroup 实例。
+     *
+     * @param config 配置管理器实例
+     * @return WorkerGroup 实例（已启动）
      */
-    public enum ExecutorType {
-        /**
-         * 基于主键的执行器
-         */
-        KEY_BASED,
+    public static WorkerGroup createWorkerGroup(Log4KeyConfiguration config) {
+        int workerCount = config.getCorePoolSize();
+        int queueCapacity = config.getExecutorQueueSize();
+        int maxFileWriters = config.getMaxFileWriters();
+        long writerIdleTimeout = ConfigKeys.WRITER_IDLE_TIMEOUT_KEY.defaultValue();
+        long batchSize = config.getBatchSize();
+        long flushIntervalMs = config.getFlushInterval();
+        int highWaterMark = config.getHighWaterMark();
+        int initialBufferSize = config.getInitialBufferSize();
+        long maxFileSize = config.getMaxFileSizeMB() * 1024L * 1024L;
+        String charset = config.getDefaultCharset();
 
-        /**
-         * 普通线程池执行器
-         */
-        DEFAULT
+        WorkerGroup workerGroup = new WorkerGroup(
+                workerCount, queueCapacity, maxFileWriters,
+                writerIdleTimeout, batchSize, flushIntervalMs,
+                highWaterMark, initialBufferSize, maxFileSize, charset);
+
+        workerGroup.start();
+        return workerGroup;
     }
 
     /**
-     * 创建LogExecutor实例
-     * @param type 执行器类型
-     * @param corePoolSize 核心线程数
-     * @return LogExecutor实例
-     */
-    public static LogExecutor createExecutor(ExecutorType type, int corePoolSize) {
-        switch (type) {
-            case KEY_BASED:
-                return new KeyBasedLogExecutor(corePoolSize);
-            case DEFAULT:
-            default:
-                return new DefaultLogExecutor(corePoolSize);
-        }
-    }
-
-
-    /**
-     * 根据配置创建LogExecutor实例
+     * 根据配置创建 LogExecutor 实例。
+     *
+     * 当前默认创建 WorkerGroup 作为主执行器。
+     *
      * @param configuration 配置管理器实例
-     * @return LogExecutor实例
+     * @return LogExecutor 实例
      */
     public static LogExecutor createExecutorFromConfig(Log4KeyConfiguration configuration) {
-        // 默认使用基于主键的执行器
-        ExecutorType type = ExecutorType.KEY_BASED;
-
-        // 从结构化配置获取执行器类型
-        String typeStr = configuration.getExecutorType();
-        if (typeStr == null || typeStr.isEmpty()) {
-            // 回退到旧的配置键
-            typeStr = configuration.getExecutorType();
-        }
-        try {
-            type = ExecutorType.valueOf(typeStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            // 类型无效，使用默认值
-            org.slf4j.LoggerFactory.getLogger(LogExecutorFactory.class).warn("Invalid executorType: {}", typeStr, e);
-        }
-
-        // 获取核心线程数
-        int corePoolSize = configuration.getCorePoolSize();
-
-        // 获取队列大小（目前未使用，但保留供将来扩展）
-        int queueSize = configuration.getExecutorQueueSize();
-
-        return createExecutor(type, corePoolSize);
+        return createWorkerGroup(configuration);
     }
 
     /**
-     * 默认日志执行器实现
-     * 使用普通的FixedThreadPool
+     * 默认日志执行器实现（fallback）。
+     *
+     * 使用普通的 FixedThreadPool，忽略 key 路由。
      */
     private static class DefaultLogExecutor implements LogExecutor {
 
@@ -93,20 +72,18 @@ public class LogExecutorFactory {
         public DefaultLogExecutor(int corePoolSize) {
             this.executor = Executors.newFixedThreadPool(corePoolSize, r -> {
                 Thread thread = new Thread(r, "log4key-default-executor-" + threadCounter.getAndIncrement());
-                thread.setDaemon(false); // 非守护线程
+                thread.setDaemon(false);
                 return thread;
             });
         }
 
         @Override
         public Future<?> submit(String key, Runnable task) {
-            // 默认执行器忽略key，直接提交任务
             return executor.submit(task);
         }
 
         @Override
         public void execute(String key, Runnable command) {
-            // 默认执行器忽略key，直接执行任务
             executor.execute(command);
         }
 

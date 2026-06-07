@@ -5,6 +5,9 @@
  */
 package com.log4key.util;
 
+import com.log4key.path.PathKey;
+import com.log4key.worker.WorkerGroup;
+
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,6 +77,33 @@ public class ExecutorController {
                 // 降级执行器也失败，直接在调用线程执行
                 task.run();
             }
+        }
+    }
+
+    /**
+     * 执行写入任务（委托给 WorkerGroup）。
+     *
+     * 由 FileAppender 调用，将格式化后的日志消息通过 WorkerGroup 投递到对应 Worker 的 Mailbox 中异步执行。
+     *
+     * @param key               workerId 字符串（由 FileAppender.shard() 计算）
+     * @param pathKey           路径键
+     * @param formattedMessage  已格式化的日志消息
+     */
+    public void executeWrite(String key, PathKey pathKey, String formattedMessage) {
+        if (healthStatus == ExecutorHealthStatus.HEALTHY) {
+            try {
+                if (mainExecutor instanceof WorkerGroup) {
+                    ((WorkerGroup) mainExecutor).executeWrite(key, pathKey, formattedMessage);
+                } else {
+                    // 非 WorkerGroup 时，fallback：构造 Runnable 投递
+                    mainExecutor.execute(key, () -> {});
+                }
+            } catch (Exception e) {
+                healthStatus = ExecutorHealthStatus.DEGRADED;
+                fallbackExecutor.execute(key, () -> {});
+            }
+        } else {
+            fallbackExecutor.execute(key, () -> {});
         }
     }
 
@@ -195,6 +225,15 @@ public class ExecutorController {
      */
     public FallbackLogExecutor getFallbackExecutor() {
         return fallbackExecutor;
+    }
+
+    /**
+     * 获取主执行器（供 LogManager 注入 workerCount 到 FileAppender 使用）。
+     *
+     * @return 主执行器
+     */
+    public LogExecutor getMainExecutor() {
+        return mainExecutor;
     }
 
     /**
