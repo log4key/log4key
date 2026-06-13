@@ -197,11 +197,6 @@ public final class ConfigKeys {
     public static final String WRITER_IDLE_TIMEOUT = "writerIdleTimeout";
 
     /**
-     * 最大批量大小
-     */
-    public static final String MAX_BATCH_SIZE = "maxBatchSize";
-
-    /**
      * 最大文件写入器数量
      */
     public static final String MAX_FILE_WRITERS = "maxFileWriters";
@@ -332,10 +327,6 @@ public final class ConfigKeys {
      */
     public static final ConfigKey<Long> WRITER_IDLE_TIMEOUT_KEY =
         new ConfigKey<>(WRITER_IDLE_TIMEOUT, Long.class, 1800000L);
-
-    /** @deprecated 旧语义: 批量分片条数，V2 不再使用 */
-    public static final ConfigKey<Integer> MAX_BATCH_SIZE_KEY =
-        new ConfigKey<>(MAX_BATCH_SIZE, Integer.class, 100);
 
     /**
      * 最大文件写入器数量（语义化键）
@@ -482,7 +473,6 @@ public final class ConfigKeys {
         allKeys.put(APPENDER_CHARSET_KEY.name(), APPENDER_CHARSET_KEY);
         allKeys.put(APPENDER_FORMATTER_KEY.name(), APPENDER_FORMATTER_KEY);
         allKeys.put(WRITER_IDLE_TIMEOUT_KEY.name(), WRITER_IDLE_TIMEOUT_KEY);
-        allKeys.put(MAX_BATCH_SIZE_KEY.name(), MAX_BATCH_SIZE_KEY);
         allKeys.put(MAX_FILE_WRITERS_KEY.name(), MAX_FILE_WRITERS_KEY);
         allKeys.put(BATCH_SIZE_KEY.name(), BATCH_SIZE_KEY);
         allKeys.put(FLUSH_INTERVAL_KEY.name(), FLUSH_INTERVAL_KEY);
