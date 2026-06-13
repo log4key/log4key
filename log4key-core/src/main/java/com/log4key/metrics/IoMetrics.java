@@ -20,19 +20,24 @@ public class IoMetrics {
     private static volatile boolean accepting = true;
     
     /**
-     * 总日志事件数
+     * 日志事件入口计数。每个 LogEvent 在 LogManager 入口处计数 1 次。
      */
     public static final AtomicLong TOTAL_EVENTS = new AtomicLong();
     
     /**
-     * 写操作次数（真实触发底层 syscall 的次数）
+     * 每次 batch write 到 BufferedWriter 的次数（batchSize ≈4KB 触发 write()）
      */
     public static final AtomicLong WRITE_CALLS = new AtomicLong();
     
     /**
-     * 刷新操作次数
+     * 每次 BufferedWriter.flush() 的次数。触发条件：flushInterval(1s) / highWaterMark(32KB) / idle / rolling / shutdown
      */
     public static final AtomicLong FLUSH_CALLS = new AtomicLong();
+    
+    /**
+     * 拒绝投递次数（Mailbox 背压 Level3）
+     */
+    public static final AtomicLong REJECTED = new AtomicLong();
     
     /**
      * 写入字节数
@@ -82,6 +87,17 @@ public class IoMetrics {
     public static void recordFlush() {
         if (accepting) {
             FLUSH_CALLS.incrementAndGet();
+        }
+    }
+
+    /**
+     * Records a rejected offer.
+     *
+     * 记录拒绝投递。
+     */
+    public static void recordReject() {
+        if (accepting) {
+            REJECTED.incrementAndGet();
         }
     }
 
@@ -142,6 +158,17 @@ public class IoMetrics {
     }
     
     /**
+     * Gets the number of rejected offers.
+     *
+     * 获取拒绝次数。
+     *
+     * @return the number of rejected offers / 拒绝次数
+     */
+    public static long getRejected() {
+        return REJECTED.get();
+    }
+    
+    /**
      * Gets the number of bytes written.
      *
      * 获取写入字节数。
@@ -195,6 +222,7 @@ public class IoMetrics {
         BYTES_WRITTEN.set(0);
         FILE_WRITTEN.set(0);
         FILE_SWITCHES.set(0);
+        REJECTED.set(0);
     }
 
     /**
@@ -210,6 +238,7 @@ public class IoMetrics {
                 "FLUSH_CALLS:" + FLUSH_CALLS.get() + "\n" +
                 "BYTES_WRITTEN:" + BYTES_WRITTEN.get() + "\n" +
                 "FILE_WRITTEN:" + FILE_WRITTEN.get() + "\n" +
-                "FILE_SWITCHES:" + FILE_SWITCHES.get();
+                "FILE_SWITCHES:" + FILE_SWITCHES.get() + "\n" +
+                "REJECTED:" + REJECTED.get();
     }
 }
