@@ -5,11 +5,10 @@
  */
 package com.log4key.mailbox;
 
+import com.log4key.worker.Mailbox;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

@@ -5,8 +5,6 @@
  */
 package com.log4key.worker;
 
-import com.log4key.mailbox.Mailbox;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
