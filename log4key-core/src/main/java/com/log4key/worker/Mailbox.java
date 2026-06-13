@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-3.0-only
  */
-package com.log4key.mailbox;
+package com.log4key.worker;
 
 import com.log4key.internal.InternalLogger;
 
@@ -224,9 +224,13 @@ public class Mailbox {
     }
 
     /**
-     * 获取当前队列中的元素数量（近似值，包含已声明但尚未发布的槽位）。
+     * 获取当前队列中的元素数量（近似值，仅用于监控，不得参与逻辑处理判断）。
      *
-     * @return 当前元素数量
+     * 基于 tail - head 计算，是乐观值：
+     * 包含 CAS 已声明但尚未 ready 的槽位。
+     * 与 poll() 以 ready 为准不一致——可能出现 size() > 0 但 poll() 返回 null 的情况。
+     *
+     * @return 当前元素数量（近似值）
      */
     public int size() {
         long t = tail.get();
@@ -245,29 +249,39 @@ public class Mailbox {
     }
 
     /**
-     * 判断队列是否为空。
+     * 判断队列是否为空（近似值，仅用于监控，不得参与逻辑处理判断）。
      *
-     * 当 tail == head 时队列确定为空（无已声明的槽位）。
+     * 基于 tail == head 判断，是乐观值：
+     * CAS 已声明但尚未 ready 的槽位也视为非空。
+     * 与 poll() 以 ready 为准不一致——可能出现 isEmpty() 为 false 但 poll() 返回 null 的情况。
      *
-     * @return true 表示队列为空
+     * @return true 表示队列为空（所有已声明槽位均已消费）
      */
     public boolean isEmpty() {
         return tail.get() == head;
     }
 
     /**
-     * 判断队列是否已满。
+     * 判断队列是否已满（近似值，仅用于监控，不得参与逻辑处理判断）。
      *
-     * @return true 表示队列已满
+     * 基于 tail - head >= capacity 判断，是乐观值：
+     * CAS 已声明但尚未 ready 的槽位也计入已用量。
+     * 内在与 offer() 容量守卫（tail - head >= capacity）一致，
+     * 但用于外部调用时，读到的 head/tail 不保证原子一致性。
+     *
+     * @return true 表示队列已满（近似值）
      */
     public boolean isFull() {
         return tail.get() - head >= capacity;
     }
 
     /**
-     * 获取当前队列使用率。
+     * 获取当前队列使用率（近似值，仅用于监控，不得参与逻辑处理判断）。
      *
-     * @return 使用率，范围 [0.0, 1.0]
+     * 基于 (tail - head) / capacity 计算，是乐观值：
+     * CAS 已声明但尚未 ready 的槽位也计入使用量。
+     *
+     * @return 使用率，范围 [0.0, 1.0]（近似值）
      */
     public float usageRate() {
         long t = tail.get();

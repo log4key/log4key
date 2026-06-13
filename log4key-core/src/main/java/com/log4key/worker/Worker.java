@@ -8,7 +8,6 @@ package com.log4key.worker;
 import com.log4key.channel.FileChannel;
 import com.log4key.channel.FileChannelManager;
 import com.log4key.internal.InternalLogger;
-import com.log4key.mailbox.Mailbox;
 import com.log4key.metrics.IoMetrics;
 import com.log4key.path.PathKey;
 
@@ -142,7 +141,7 @@ public class Worker implements Runnable {
      * 处理写入任务。
      *
      * 投递到 Mailbox 的 Runnable 在 Worker 线程中执行，内部完成：
-     * FileChannel.getOrCreate → channel.append → shouldFlush → flush。
+     * FileChannel.getOrCreate → channel.append → shouldWrite/write → shouldFlush/flush。
      *
      * @param task 写入任务
      */
@@ -157,6 +156,11 @@ public class Worker implements Runnable {
 
     /**
      * 处理单个日志写入操作（供 WriteTask 内部调用）。
+     *
+     * 三阶段：append → write → flush。
+     * append 将格式化消息追加到 StringBuilder 缓冲区；
+     * write（batchSize 触发）将缓冲区内容编码写入 BufferedWriter（不刷盘）；
+     * flush（flushInterval 或 highWaterMark 触发）将 BufferedWriter 刷入 OS Page Cache。
      *
      * @param pathKey          路径键
      * @param formattedMessage 已格式化的日志消息
@@ -175,9 +179,14 @@ public class Worker implements Runnable {
         // 追加到缓冲区
         channel.append(formattedMessage);
 
-        // 检查是否需要 flush
-        if (channel.shouldFlush(batchSize, flushIntervalMs, highWaterMark)) {
-            channel.flush(batchSize, flushIntervalMs, highWaterMark, initialBufferSize);
+        // 阶段1: batchSize 触发 → write() 编码写入 BufferedWriter（不刷盘）
+        if (channel.shouldWrite(batchSize)) {
+            channel.write(highWaterMark, initialBufferSize);
+        }
+
+        // 阶段2: flushInterval 或 highWaterMark 触发 → flush() 刷入 OS Page Cache
+        if (channel.shouldFlush(flushIntervalMs, highWaterMark)) {
+            channel.flush();
         }
     }
 

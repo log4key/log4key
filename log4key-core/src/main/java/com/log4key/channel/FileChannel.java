@@ -23,7 +23,9 @@ import com.log4key.path.PathKey;
 /**
  * 日志文件写入执行单元。
  *
- * 负责单一日志文件的缓冲写入、刷新策略、文件滚动和 IoMetrics 统计。
+ * 负责单一日志文件的缓冲写入、文件滚动和 IoMetrics 统计。
+ * 写入与刷新分离：{@code estimatedBytes >= batchSize} 触发 {@code write()}，
+ * 时间间隔或高水位（{@code flushIntervalMs}/{@code highWaterMark}）触发 {@code flush()}。
  */
 public class FileChannel {
 
@@ -111,32 +113,35 @@ public class FileChannel {
     }
 
     /**
-     * 判断是否需要执行刷新。
+     * 判断是否需要执行写入：仅检查累积字节数是否达到批量大小阈值。
      *
-     * @param batchSize       批量大小阈值（字节）
+     * @param batchSize 批量大小阈值（字节）
+     * @return true 如果 estimatedBytes >= batchSize
+     */
+    public boolean shouldWrite(long batchSize) {
+        return estimatedBytes >= batchSize;
+    }
+
+    /**
+     * 判断是否需要执行刷新：检查时间间隔和高水位。
+     *
      * @param flushIntervalMs 刷新间隔阈值（毫秒）
      * @param highWaterMark   高水位阈值（字节）
-     * @return true 如果需要刷新
+     * @return true 如果距上次刷新时间 >= flushIntervalMs 或 estimatedBytes >= highWaterMark
      */
-    public boolean shouldFlush(long batchSize, long flushIntervalMs, long highWaterMark) {
-        long now = System.currentTimeMillis();
-        return estimatedBytes >= batchSize
-                || (now - lastFlushTime) >= flushIntervalMs
+    public boolean shouldFlush(long flushIntervalMs, long highWaterMark) {
+        return (System.currentTimeMillis() - lastFlushTime) >= flushIntervalMs
                 || estimatedBytes >= highWaterMark;
     }
 
     /**
-     * 执行缓冲区刷新：检查滚动、写入文件、更新 IoMetrics、清空缓冲区。
+     * 执行缓冲区写入：检查滚动、编码并写入文件、更新 IoMetrics、清空缓冲区。
      *
-     * @param batchSize        批量大小阈值（字节）
-     * @param flushIntervalMs  刷新间隔阈值（毫秒）
-     * @param highWaterMark    高水位阈值（字节）
+     * @param highWaterMark     高水位阈值（字节），用于控制清空缓冲区后是否重建
      * @param initialBufferSize 初始缓冲区大小（用于重建 buffer）
      * @throws IOException 如果写入或滚动失败
      */
-    public void flush(long batchSize, long flushIntervalMs, long highWaterMark, int initialBufferSize) throws IOException {
-        long now = System.currentTimeMillis();
-
+    public void write(long highWaterMark, int initialBufferSize) throws IOException {
         // 1. 检查是否需要滚动
         if (needsRolling()) {
             rollFile();
@@ -152,13 +157,7 @@ public class FileChannel {
         // 4. 记录写操作（使用实际字节数）
         IoMetrics.recordWrite(bytes.length);
 
-        // 5. 刷新 writer
-        writer.flush();
-
-        // 6. 记录刷新操作
-        IoMetrics.recordFlush();
-
-        // 7. 清空缓冲区
+        // 5. 清空缓冲区
         if (buffer.capacity() > highWaterMark) {
             // 缓冲区容量过高，创建新实例以释放内存
             buffer = new StringBuilder(initialBufferSize);
@@ -167,9 +166,19 @@ public class FileChannel {
             buffer.setLength(0);
         }
 
-        // 8. 重置统计
+        // 6. 重置统计
         estimatedBytes = 0L;
-        lastFlushTime = now;
+    }
+
+    /**
+     * 执行缓冲区刷新：将 writer 中的数据真正刷入磁盘。
+     *
+     * @throws IOException 如果刷新失败
+     */
+    public void flush() throws IOException {
+        writer.flush();
+        IoMetrics.recordFlush();
+        lastFlushTime = System.currentTimeMillis();
     }
 
     /**

@@ -7,11 +7,10 @@ package com.log4key.worker;
 
 import com.log4key.channel.FileChannelManager;
 import com.log4key.internal.InternalLogger;
-import com.log4key.mailbox.Mailbox;
+import com.log4key.metrics.IoMetrics;
 import com.log4key.path.PathKey;
 import com.log4key.util.LogExecutor;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -29,37 +28,43 @@ public class WorkerGroup implements LogExecutor {
 
     private static final InternalLogger logger = InternalLogger.getLogger(WorkerGroup.class);
 
-    /** Worker 数量（由 executor.threads 配置，默认 4） */
+    /** Worker 数量（由 executor.threads 配置，默认 4，非 2 的幂自动修正） */
     private final int workerCount;
 
-    /** Mailbox 数组 */
+    /** Mailbox 数组，索引对应 Worker 编号 */
     private final Mailbox[] mailboxes;
 
-    /** Worker 数组 */
+    /** Worker 数组，索引对应 Worker 编号 */
     private final Worker[] workers;
 
-    /** 关闭标记 */
+    /** 关闭标记（volatile，多线程读写） */
     private volatile boolean shutdown;
 
-    /** 终止标记 */
+    /** 终止标记（volatile，多线程读写） */
     private volatile boolean terminated;
 
-    /** Flush 参数 */
+    /** Flush 字节阈值（向下透传给 Worker/FileChannelManager） */
     private final long batchSize;
+
+    /** Flush 时间间隔（毫秒，向下透传给 Worker/FileChannelManager） */
     private final long flushIntervalMs;
+
+    /** Buffer 扩容回收阈值（向下透传给 Worker/FileChannelManager） */
     private final long highWaterMark;
+
+    /** StringBuilder 初始容量（向下透传给 Worker/FileChannelManager） */
     private final int initialBufferSize;
 
-    /** FD 上限配置 */
+    /** FD 上限配置（作为 per-worker 动态计算的封顶值） */
     private final int maxFileWriters;
 
-    /** 空闲超时（毫秒） */
+    /** 空闲超时（毫秒，透传给 FileChannelManager） */
     private final long idleTimeoutMs;
 
-    /** 最大文件大小（字节） */
+    /** 最大文件大小（字节，触发 rolling，透传给 FileChannelManager） */
     private final long maxFileSize;
 
-    /** 字符编码 */
+    /** 字符编码（透传给 FileChannelManager） */
     private final String charset;
 
     /**
@@ -168,6 +173,7 @@ public class WorkerGroup implements LogExecutor {
 
         boolean offered = mailboxes[workerId].offer(wrappedTask);
         if (!offered) {
+            IoMetrics.recordReject();
             future.completeExceptionally(new IllegalStateException("Mailbox full for worker " + workerId));
         }
 
@@ -193,7 +199,7 @@ public class WorkerGroup implements LogExecutor {
         boolean offered = mailboxes[workerId].offer(command);
 
         if (!offered) {
-            // L3 背压：Mailbox 满，拒绝投递
+            IoMetrics.recordReject();
             logger.warn("Mailbox full for worker {}, task rejected", workerId);
         }
     }
@@ -222,6 +228,7 @@ public class WorkerGroup implements LogExecutor {
             }
         });
         if (!offered) {
+            IoMetrics.recordReject();
             logger.warn("Mailbox full for worker {}, write task rejected", workerId);
         }
     }

@@ -156,7 +156,10 @@ public class FileChannelManager {
         FileChannel channel = eldest.getValue();
 
         try {
-            channel.flush(batchSize, flushIntervalMs, highWaterMark, initialBufferSize);
+            if (channel.getEstimatedBytes() > 0) {
+                channel.write(highWaterMark, initialBufferSize);
+            }
+            channel.flush();
             channel.close();
         } catch (IOException e) {
             logger.warn("Failed to evict FileChannel: pathKey={}, error={}", pathKey, e.getMessage());
@@ -186,10 +189,10 @@ public class FileChannelManager {
             if (now - channel.getLastAccessTime() > idleTimeoutMs) {
                 PathKey pathKey = entry.getKey();
                 try {
-                    // 先 flush 未写入的缓冲内容
                     if (channel.getEstimatedBytes() > 0) {
-                        channel.flush(batchSize, flushIntervalMs, highWaterMark, initialBufferSize);
+                        channel.write(highWaterMark, initialBufferSize);
                     }
+                    channel.flush();
                     channel.close();
                 } catch (IOException e) {
                     logger.warn("Failed to close idle FileChannel: pathKey={}, error={}", pathKey, e.getMessage());
@@ -218,8 +221,9 @@ public class FileChannelManager {
             FileChannel channel = entry.getValue();
             try {
                 if (channel.getEstimatedBytes() > 0) {
-                    channel.flush(batchSize, flushIntervalMs, highWaterMark, initialBufferSize);
+                    channel.write(highWaterMark, initialBufferSize);
                 }
+                channel.flush();
                 channel.close();
             } catch (IOException e) {
                 logger.warn("Failed to close FileChannel: pathKey={}, error={}", entry.getKey(), e.getMessage());
