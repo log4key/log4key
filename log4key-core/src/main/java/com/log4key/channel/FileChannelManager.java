@@ -8,16 +8,17 @@ package com.log4key.channel;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.log4key.internal.InternalLogger;
 import com.log4key.metrics.IoMetrics;
 import com.log4key.path.PathKey;
+import com.sun.management.UnixOperatingSystemMXBean;
 
 /**
  * FileChannel 生命周期管理器。
@@ -37,6 +38,12 @@ public class FileChannelManager {
 
     /** LinkedHashMap 负载因子 */
     private static final float LOAD_FACTOR = 0.75f;
+
+    /** 全局缓存命中计数（跨所有实例） */
+    private static final AtomicLong totalHits = new AtomicLong(0);
+
+    /** 全局缓存未命中计数（跨所有实例） */
+    private static final AtomicLong totalMisses = new AtomicLong(0);
 
     /** Channel 映射表，accessOrder=true 实现 LRU */
     private final LinkedHashMap<PathKey, FileChannel> channelMap;
@@ -113,12 +120,14 @@ public class FileChannelManager {
         // 1. 命中缓存：直接返回（LinkedHashMap accessOrder 自动更新 LRU 顺序）
         FileChannel channel = channelMap.get(pathKey);
         if (channel != null) {
+            totalHits.incrementAndGet();
             // 更新访问时间，确保 idleScan 不会误释放最近访问的 Channel
             channel.touch();
             return channel;
         }
 
         // 2. 未命中：检查容量，必要时淘汰
+        totalMisses.incrementAndGet();
         if (channelMap.size() >= maxOpenChannels) {
             evictLRU();
         }
@@ -132,7 +141,7 @@ public class FileChannelManager {
         channelMap.put(pathKey, channel);
 
         // 5. 统计：记录文件写入
-        IoMetrics.recordFileWrite();
+        IoMetrics.recordFileTouched();
 
         logger.debug("FileChannel created: pathKey={}, total open channels={}", pathKey, channelMap.size());
 
@@ -251,6 +260,33 @@ public class FileChannelManager {
         return maxOpenChannels;
     }
 
+    /**
+     * 返回全局缓存命中率统计信息。
+     *
+     * 统计所有 Worker 的 FileChannelManager 实例的 getOrCreate 调用情况。
+     *
+     * @return 格式化的缓存命中率统计字符串
+     */
+    public static String getCacheHitRateInfo() {
+        long hits = totalHits.get();
+        long misses = totalMisses.get();
+        long total = hits + misses;
+        if (total == 0) {
+            return "FileChannelManager 缓存统计: 无调用记录";
+        }
+        double hitRate = (double) hits / total * 100.0;
+        return String.format("FileChannelManager 缓存统计: 命中=%d, 未命中=%d, 总计=%d, 命中率=%.2f%%",
+                hits, misses, total, hitRate);
+    }
+
+    /**
+     * 重置全局缓存命中率统计计数器。
+     */
+    public static void resetCacheHitRate() {
+        totalHits.set(0);
+        totalMisses.set(0);
+    }
+
     // ---- 静态方法：FD 动态计算 ----
 
     /**
@@ -267,7 +303,7 @@ public class FileChannelManager {
      */
     public static int calculatePerWorkerLimit(int maxFileWriters, int workerCount) {
         // 1. 获取系统 ulimit
-        long systemUlimit = getSystemUlimit();
+        long systemUlimit = getSystemULimit();
 
         // 2. 计算全局最大打开 Channel 数（动态计算，非配置值）
         long globalMaxOpenChannels = (long) (systemUlimit * ULIMIT_RESERVATION_RATIO);
@@ -297,26 +333,28 @@ public class FileChannelManager {
      *
      * @return 系统 ulimit 值，若无法获取则返回保守默认值 1024
      */
-    private static long getSystemUlimit() {
+    private static long getSystemULimit() {
         OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
 
-        // 通过反射尝试调用 getMaxFileDescriptorCount()（JDK 14+ 可用）
-        try {
-            Method method = osBean.getClass().getMethod("getMaxFileDescriptorCount");
-            Object result = method.invoke(osBean);
-            if (result instanceof Long) {
-                long maxFD = (Long) result;
+        // Java 8 中，Unix/Linux/macOS 下的实际类型为 UnixOperatingSystemMXBean
+        if (osBean instanceof UnixOperatingSystemMXBean) {
+            try {
+                UnixOperatingSystemMXBean unixBean = (UnixOperatingSystemMXBean) osBean;
+                long maxFD = unixBean.getMaxFileDescriptorCount();
                 if (maxFD > 0) {
                     return maxFD;
                 }
+            } catch (SecurityException e) {
+                // 在安全管理器下可能被拒绝
+                logger.debug("安全管理器阻止获取文件描述符限制: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            // 方法不存在或调用失败，使用默认值
-            logger.debug("getMaxFileDescriptorCount() 不可用，使用默认 ulimit 值: {}", e.getMessage());
+        } else {
+            // Windows 或其他系统
+            logger.debug("当前系统 (实现类: {}) 不支持 Unix 文件描述符限制", osBean.getClass().getName());
         }
 
-        // 回退：无法获取时使用保守默认值
-        logger.warn("无法获取系统 ulimit，使用默认值 1024");
+        // Java 8 中很多容器环境可能无法正确读取，保守回退
+        logger.warn("未获取到系统 ulimit，采用默认值 1024");
         return 1024L;
     }
 }
