@@ -7,7 +7,7 @@ package com.log4key.worker;
 
 import com.log4key.channel.FileChannelManager;
 import com.log4key.internal.InternalLogger;
-import com.log4key.metrics.IoMetrics;
+import com.log4key.metrics.LogMetrics;
 import com.log4key.path.PathKey;
 import com.log4key.util.LogExecutor;
 
@@ -43,30 +43,6 @@ public class WorkerGroup implements LogExecutor {
     /** 终止标记（volatile，多线程读写） */
     private volatile boolean terminated;
 
-    /** Flush 字节阈值（向下透传给 Worker/FileChannelManager） */
-    private final long batchSize;
-
-    /** Flush 时间间隔（毫秒，向下透传给 Worker/FileChannelManager） */
-    private final long flushIntervalMs;
-
-    /** Buffer 扩容回收阈值（向下透传给 Worker/FileChannelManager） */
-    private final long highWaterMark;
-
-    /** StringBuilder 初始容量（向下透传给 Worker/FileChannelManager） */
-    private final int initialBufferSize;
-
-    /** FD 上限配置（作为 per-worker 动态计算的封顶值） */
-    private final int maxFileWriters;
-
-    /** 空闲超时（毫秒，透传给 FileChannelManager） */
-    private final long idleTimeoutMs;
-
-    /** 最大文件大小（字节，触发 rolling，透传给 FileChannelManager） */
-    private final long maxFileSize;
-
-    /** 字符编码（透传给 FileChannelManager） */
-    private final String charset;
-
     /**
      * 构造 WorkerGroup 实例。
      *
@@ -93,15 +69,6 @@ public class WorkerGroup implements LogExecutor {
         } else {
             this.workerCount = workerCount;
         }
-
-        this.batchSize = batchSize;
-        this.flushIntervalMs = flushIntervalMs;
-        this.highWaterMark = highWaterMark;
-        this.initialBufferSize = initialBufferSize;
-        this.maxFileWriters = maxFileWriters;
-        this.idleTimeoutMs = idleTimeoutMs;
-        this.maxFileSize = maxFileSize;
-        this.charset = charset;
 
         this.mailboxes = new Mailbox[this.workerCount];
         this.workers = new Worker[this.workerCount];
@@ -173,7 +140,7 @@ public class WorkerGroup implements LogExecutor {
 
         boolean offered = mailboxes[workerId].offer(wrappedTask);
         if (!offered) {
-            IoMetrics.recordReject();
+            LogMetrics.recordRejected();
             future.completeExceptionally(new IllegalStateException("Mailbox full for worker " + workerId));
         }
 
@@ -199,7 +166,7 @@ public class WorkerGroup implements LogExecutor {
         boolean offered = mailboxes[workerId].offer(command);
 
         if (!offered) {
-            IoMetrics.recordReject();
+            LogMetrics.recordRejected();
             logger.warn("Mailbox full for worker {}, task rejected", workerId);
         }
     }
@@ -228,7 +195,7 @@ public class WorkerGroup implements LogExecutor {
             }
         });
         if (!offered) {
-            IoMetrics.recordReject();
+            LogMetrics.recordRejected();
             logger.warn("Mailbox full for worker {}, write task rejected", workerId);
         }
     }
@@ -328,6 +295,7 @@ public class WorkerGroup implements LogExecutor {
     /**
      * 将数值向上取整到最近的 2 的幂。
      */
+    @SuppressWarnings("DuplicatedCode")
     static int roundUpToPowerOfTwo(int n) {
         if (n <= 1) {
             return 1;

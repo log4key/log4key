@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.log4key.metrics.IoMetrics;
 import com.log4key.metrics.LogMetrics;
 import com.log4key.util.LogExecutor;
 import com.log4key.util.LogExecutorFactory;
@@ -215,8 +214,7 @@ public class LogManager {
             return;
         }
 
-        // 记录日志事件数（IoMetrics 从 LogFileWriter.write() 迁移至此）
-        IoMetrics.recordEvent();
+        // 记录日志事件数（Produced Events：日志事件入口计数）
         LogMetrics.recordEvent();
 
         // 同步分发事件到 Appender（format + route + shard 在调用线程完成）

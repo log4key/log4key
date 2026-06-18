@@ -5,7 +5,6 @@
  */
 package com.log4key.channel;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -45,7 +44,7 @@ public class FileChannel {
     private long lastFlushTime;
 
     /** 字符编码 */
-    private final String charset;
+    private final Charset charset;
 
     /** 文件写入器 */
     private Writer writer;
@@ -68,7 +67,7 @@ public class FileChannel {
      */
     public FileChannel(PathKey pathKey, Path directory, String fileName, String charset, long maxFileSize) throws IOException {
         this.pathKey = pathKey;
-        this.charset = charset;
+        this.charset = Charset.forName(charset);
         this.maxFileSize = maxFileSize;
         this.buffer = new StringBuilder(4096);
         this.estimatedBytes = 0L;
@@ -85,7 +84,7 @@ public class FileChannel {
         // 创建追加模式的写入器（使用 NIO Files API 以确保 Windows 文件句柄正确释放）
         this.writer = Files.newBufferedWriter(
                 currentFile.toPath(),
-                Charset.forName(charset),
+                this.charset,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.APPEND
         );
@@ -149,13 +148,12 @@ public class FileChannel {
 
         // 2. 将 buffer 内容编码为字节数组（用于统计精确字节数）
         String content = buffer.toString();
-        byte[] bytes = content.getBytes(Charset.forName(charset));
 
         // 3. 写入文件
         writer.write(content);
 
         // 4. 记录写操作（使用实际字节数）
-        IoMetrics.recordWrite(bytes.length);
+        IoMetrics.recordWrite(content.length());
 
         // 5. 清空缓冲区
         if (buffer.capacity() > highWaterMark) {
@@ -223,7 +221,7 @@ public class FileChannel {
         // 4. 创建新 writer（非追加模式，因为文件已重命名）
         writer = Files.newBufferedWriter(
                 currentFile.toPath(),
-                Charset.forName(charset),
+                charset,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.TRUNCATE_EXISTING
         );

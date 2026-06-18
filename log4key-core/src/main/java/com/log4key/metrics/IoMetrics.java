@@ -20,11 +20,6 @@ public class IoMetrics {
     private static volatile boolean accepting = true;
     
     /**
-     * 日志事件入口计数。每个 LogEvent 在 LogManager 入口处计数 1 次。
-     */
-    public static final AtomicLong TOTAL_EVENTS = new AtomicLong();
-    
-    /**
      * 每次 batch write 到 BufferedWriter 的次数（batchSize ≈4KB 触发 write()）
      */
     public static final AtomicLong WRITE_CALLS = new AtomicLong();
@@ -35,35 +30,14 @@ public class IoMetrics {
     public static final AtomicLong FLUSH_CALLS = new AtomicLong();
     
     /**
-     * 拒绝投递次数（Mailbox 背压 Level3）
-     */
-    public static final AtomicLong REJECTED = new AtomicLong();
-    
-    /**
      * 写入字节数
      */
     public static final AtomicLong BYTES_WRITTEN = new AtomicLong();
 
     /**
-     * 写入文件数（同一文件只会计算一次）
+     * File Touched，触达的文件数（同一文件只会计算一次）
      */
-    public static final AtomicLong FILE_WRITTEN = new AtomicLong();
-    
-    /**
-     * 文件切换次数（当前线程操作不同路由文件变更时）
-     */
-    public static final AtomicLong FILE_SWITCHES = new AtomicLong();
-    
-    /**
-     * Records a log event.
-     *
-     * 记录日志事件。
-     */
-    public static void recordEvent() {
-        if (accepting) {
-            TOTAL_EVENTS.incrementAndGet();
-        }
-    }
+    public static final AtomicLong FILE_TOUCHED = new AtomicLong();
     
     /**
      * Records a write operation.
@@ -91,50 +65,16 @@ public class IoMetrics {
     }
 
     /**
-     * Records a rejected offer.
+     * Records a file touch.
      *
-     * 记录拒绝投递。
+     * 记录触达文件。
      */
-    public static void recordReject() {
+    public static void recordFileTouched() {
         if (accepting) {
-            REJECTED.incrementAndGet();
+            FILE_TOUCHED.incrementAndGet();
         }
     }
 
-
-    /**
-     * Records a file write.
-     *
-     * 记录文件数。
-     */
-    public static void recordFileWrite() {
-        if (accepting) {
-            FILE_WRITTEN.incrementAndGet();
-        }
-    }
-
-    /**
-     * Records a file switch.
-     *
-     * 记录文件切换。
-     */
-    public static void recordFileSwitch() {
-        if (accepting) {
-            FILE_SWITCHES.incrementAndGet();
-        }
-    }
-    
-    /**
-     * Gets the total number of events.
-     *
-     * 获取总日志事件数。
-     *
-     * @return the total number of events / 总日志事件数
-     */
-    public static long getTotalEvents() {
-        return TOTAL_EVENTS.get();
-    }
-    
     /**
      * Gets the number of write calls.
      *
@@ -158,17 +98,6 @@ public class IoMetrics {
     }
     
     /**
-     * Gets the number of rejected offers.
-     *
-     * 获取拒绝次数。
-     *
-     * @return the number of rejected offers / 拒绝次数
-     */
-    public static long getRejected() {
-        return REJECTED.get();
-    }
-    
-    /**
      * Gets the number of bytes written.
      *
      * 获取写入字节数。
@@ -181,24 +110,13 @@ public class IoMetrics {
 
 
     /**
-     * Gets the number of files written.
+     * Gets the number of files touched.
      *
-     * 获取文件写入次数。
+     * 获取触达文件数。
      *
-     * @return the number of files written / 文件写入次数
+     * @return the number of files touched / 触达文件数
      */
-    public static long getFileWritten() { return FILE_WRITTEN.get(); }
-
-    /**
-     * Gets the number of file switches.
-     *
-     * 获取文件切换次数。
-     *
-     * @return the number of file switches / 文件切换次数
-     */
-    public static long getFileSwitches() {
-        return FILE_SWITCHES.get();
-    }
+    public static long getFileTouched() { return FILE_TOUCHED.get(); }
 
     /**
      * Disables metrics collection.
@@ -216,13 +134,10 @@ public class IoMetrics {
      */
     public static void reset() {
         accepting = true;
-        TOTAL_EVENTS.set(0);
         WRITE_CALLS.set(0);
         FLUSH_CALLS.set(0);
         BYTES_WRITTEN.set(0);
-        FILE_WRITTEN.set(0);
-        FILE_SWITCHES.set(0);
-        REJECTED.set(0);
+        FILE_TOUCHED.set(0);
     }
 
     /**
@@ -233,12 +148,9 @@ public class IoMetrics {
      * @return the metrics summary string / 所有计数指标字符串
      */
     public static String info() {
-        return "TOTAL_EVENTS:" + TOTAL_EVENTS.get() + "\n" +
-                "WRITE_CALLS:" + WRITE_CALLS.get() + "\n" +
+        return "WRITE_CALLS:" + WRITE_CALLS.get() + "\n" +
                 "FLUSH_CALLS:" + FLUSH_CALLS.get() + "\n" +
                 "BYTES_WRITTEN:" + BYTES_WRITTEN.get() + "\n" +
-                "FILE_WRITTEN:" + FILE_WRITTEN.get() + "\n" +
-                "FILE_SWITCHES:" + FILE_SWITCHES.get() + "\n" +
-                "REJECTED:" + REJECTED.get();
+                "FILE_TOUCHED:" + FILE_TOUCHED.get();
     }
 }

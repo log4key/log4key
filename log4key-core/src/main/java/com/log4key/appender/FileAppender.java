@@ -20,7 +20,7 @@ import com.log4key.internal.InternalLogger;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+
 
 /**
  * File-based log appender implementation.
@@ -74,11 +74,6 @@ public class FileAppender extends AbstractAppenderProvider {
      * 运行状态标志
      */
     private final AtomicBoolean running = new AtomicBoolean(false);
-
-    /**
-     * 错误计数器
-     */
-    private final AtomicLong errorCount = new AtomicLong(0);
 
     /**
      * 日志格式化器名称，默认使用文本格式
@@ -139,16 +134,6 @@ public class FileAppender extends AbstractAppenderProvider {
         return running.get();
     }
 
-    /**
-     * 获取错误计数。
-     *
-     * 获取错误计数。
-     *
-     * @return the number of errors encountered / 错误计数
-     */
-    public long getErrorCount() {
-        return errorCount.get();
-    }
 
     @Override
     public void initialize(Map<String, Object> config) {
@@ -266,7 +251,6 @@ public class FileAppender extends AbstractAppenderProvider {
         try {
             doAppend(event);
         } catch (Exception e) {
-            errorCount.incrementAndGet();
             logger.warn("Error writing log event: " + e.getMessage());
         }
     }
@@ -281,7 +265,6 @@ public class FileAppender extends AbstractAppenderProvider {
         try {
             doAppendBatch(events);
         } catch (Exception e) {
-            errorCount.incrementAndGet();
             logger.warn("Error writing log events batch: " + e.getMessage());
         }
     }

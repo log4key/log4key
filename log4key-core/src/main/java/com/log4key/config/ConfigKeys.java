@@ -455,15 +455,22 @@ public final class ConfigKeys {
         allKeys.put(DEFAULT_CHARSET_KEY.name(), DEFAULT_CHARSET_KEY);
         allKeys.put(DEFAULT_ADMISSION_LEVEL_KEY.name(), DEFAULT_ADMISSION_LEVEL_KEY);
         allKeys.put(ROOT_DIRECTORY_KEY.name(), ROOT_DIRECTORY_KEY);
-        allKeys.put(EXECUTOR_THREADS_SIZE_KEY.name(), EXECUTOR_THREADS_SIZE_KEY);
-        allKeys.put(EXECUTOR_TYPE_KEY.name(), EXECUTOR_TYPE_KEY);
-        allKeys.put(EXECUTOR_QUEUE_SIZE_KEY.name(), EXECUTOR_QUEUE_SIZE_KEY);
         allKeys.put(BUFFER_SIZE_KEY.name(), BUFFER_SIZE_KEY);
-        allKeys.put(MAX_FILE_SIZE_MB_KEY.name(), MAX_FILE_SIZE_MB_KEY);
-        allKeys.put(MAX_BACKUP_INDEX_KEY.name(), MAX_BACKUP_INDEX_KEY);
         allKeys.put(INCLUDE_LOCATION_KEY.name(), INCLUDE_LOCATION_KEY);
         allKeys.put(CONSOLE_ENABLED_KEY.name(), CONSOLE_ENABLED_KEY);
         allKeys.put(SHUTDOWN_HOOK_KEY.name(), SHUTDOWN_HOOK_KEY);
+
+        // Worker配置键
+        allKeys.put(EXECUTOR_TYPE_KEY.name(), EXECUTOR_TYPE_KEY);
+        allKeys.put(EXECUTOR_THREADS_SIZE_KEY.name(), EXECUTOR_THREADS_SIZE_KEY);
+        allKeys.put(EXECUTOR_QUEUE_SIZE_KEY.name(), EXECUTOR_QUEUE_SIZE_KEY);
+        allKeys.put(MAX_FILE_WRITERS_KEY.name(), MAX_FILE_WRITERS_KEY);
+        allKeys.put(MAX_FILE_SIZE_MB_KEY.name(), MAX_FILE_SIZE_MB_KEY);
+        allKeys.put(MAX_BACKUP_INDEX_KEY.name(), MAX_BACKUP_INDEX_KEY);
+        allKeys.put(BATCH_SIZE_KEY.name(), BATCH_SIZE_KEY);
+        allKeys.put(FLUSH_INTERVAL_KEY.name(), FLUSH_INTERVAL_KEY);
+        allKeys.put(HIGH_WATER_MARK_KEY.name(), HIGH_WATER_MARK_KEY);
+        allKeys.put(WRITER_IDLE_TIMEOUT_KEY.name(), WRITER_IDLE_TIMEOUT_KEY);
 
         // Appender配置键
         allKeys.put(APPENDER_TYPE_KEY.name(), APPENDER_TYPE_KEY);
@@ -472,11 +479,6 @@ public final class ConfigKeys {
         allKeys.put(APPENDER_FILE_NAME_KEY.name(), APPENDER_FILE_NAME_KEY);
         allKeys.put(APPENDER_CHARSET_KEY.name(), APPENDER_CHARSET_KEY);
         allKeys.put(APPENDER_FORMATTER_KEY.name(), APPENDER_FORMATTER_KEY);
-        allKeys.put(WRITER_IDLE_TIMEOUT_KEY.name(), WRITER_IDLE_TIMEOUT_KEY);
-        allKeys.put(MAX_FILE_WRITERS_KEY.name(), MAX_FILE_WRITERS_KEY);
-        allKeys.put(BATCH_SIZE_KEY.name(), BATCH_SIZE_KEY);
-        allKeys.put(FLUSH_INTERVAL_KEY.name(), FLUSH_INTERVAL_KEY);
-        allKeys.put(HIGH_WATER_MARK_KEY.name(), HIGH_WATER_MARK_KEY);
         allKeys.put(INITIAL_BUFFER_SIZE_KEY.name(), INITIAL_BUFFER_SIZE_KEY);
         allKeys.put(LEVEL_INCLUSION_KEY.name(), LEVEL_INCLUSION_KEY);
         allKeys.put(APPENDER_LEVEL_KEY.name(), APPENDER_LEVEL_KEY);

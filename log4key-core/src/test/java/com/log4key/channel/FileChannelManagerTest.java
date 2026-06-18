@@ -76,8 +76,8 @@ public class FileChannelManagerTest {
         assertSame("缓存命中应返回相同实例", ch1, ch2);
         assertEquals("缓存命中后 size 仍为 1", 1, manager.size());
 
-        // 验证 IoMetrics.recordFileWrite() 被调用
-        assertEquals("创建新 Channel 时 FILE_WRITTEN 应为 1", 1L, IoMetrics.getFileWritten());
+        // 验证 IoMetrics.recordFileTouched() 被调用
+        assertEquals("创建新 Channel 时 FILE_TOUCHED 应为 1", 1L, IoMetrics.getFileTouched());
     }
 
     /**
@@ -96,7 +96,7 @@ public class FileChannelManagerTest {
         assertNotSame("不同 PathKey 应返回不同 Channel", ch1, ch2);
         assertNotSame("不同 PathKey 应返回不同 Channel", ch2, ch3);
         assertEquals("创建 3 个 Channel 后 size 应为 3", 3, manager.size());
-        assertEquals("创建 3 个 Channel 后 FILE_WRITTEN 应为 3", 3L, IoMetrics.getFileWritten());
+        assertEquals("创建 3 个 Channel 后 FILE_TOUCHED 应为 3", 3L, IoMetrics.getFileTouched());
     }
 
     /**
@@ -131,7 +131,7 @@ public class FileChannelManagerTest {
         IoMetrics.reset();
         FileChannel ch2Again = manager.getOrCreate(pk2);
         assertNotSame("pk2 被淘汰后重新创建应为新实例", ch2, ch2Again);
-        assertEquals("淘汰后重新创建 FILE_WRITTEN 应为 1", 1L, IoMetrics.getFileWritten());
+        assertEquals("淘汰后重新创建 FILE_TOUCHED 应为 1", 1L, IoMetrics.getFileTouched());
     }
 
     /**
@@ -277,6 +277,6 @@ public class FileChannelManagerTest {
         PathKey pk1 = new PathKey(TEST_DIR, "test_refuse.log");
         manager.getOrCreate(pk1);
 
-        assertEquals("IoMetrics 拒绝采集时 FILE_WRITTEN 应为 0", 0L, IoMetrics.getFileWritten());
+        assertEquals("IoMetrics 拒绝采集时 FILE_TOUCHED 应为 0", 0L, IoMetrics.getFileTouched());
     }
 }

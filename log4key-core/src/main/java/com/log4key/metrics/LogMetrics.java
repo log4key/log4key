@@ -20,14 +20,24 @@ public class LogMetrics {
     private static volatile boolean accepting = true;
 
     /**
-     * 接收的事件数
+     * Produced events，反映产生的或接收的事件数
      */
-    public static final AtomicLong ACCEPT_EVENTS = new AtomicLong();
+    public static final AtomicLong PRODUCED_EVENTS = new AtomicLong();
 
     /**
-     * 根据事件产生的文件数
+     * Routed Events，通过路由拆解处理，产生的实际需要处理的事件数
      */
-    public static final AtomicLong EVENT_FILES = new AtomicLong();
+    public static final AtomicLong ROUTED_EVENTS = new AtomicLong();
+
+    /**
+     * Consumed Events，Worker 从邮箱中取出事件进行处理的数量
+     */
+    public static final AtomicLong CONSUMED_EVENTS = new AtomicLong();
+
+    /**
+     * Rejected Events，Mailbox 满导致事件被拒绝的数量
+     */
+    public static final AtomicLong REJECTED_EVENTS = new AtomicLong();
 
     /**
      * Records a log event.
@@ -36,7 +46,7 @@ public class LogMetrics {
      */
     public static void recordEvent() {
         if (accepting) {
-            ACCEPT_EVENTS.incrementAndGet();
+            PRODUCED_EVENTS.incrementAndGet();
         }
     }
 
@@ -49,30 +59,74 @@ public class LogMetrics {
      */
     public static void recordFile(long files) {
         if (accepting) {
-            EVENT_FILES.addAndGet(files);
+            ROUTED_EVENTS.addAndGet(files);
         }
     }
 
     /**
-     * Gets the total number of accepted events.
+     * Records a consumed event.
      *
-     * 获取总日志事件数。
-     *
-     * @return the total number of events / 总日志事件数
+     * 记录 Worker 消费的事件数。
      */
-    public static long getAcceptEvents() {
-        return ACCEPT_EVENTS.get();
+    public static void recordConsumed() {
+        if (accepting) {
+            CONSUMED_EVENTS.incrementAndGet();
+        }
     }
 
     /**
-     * Gets the total number of event files.
+     * Records a rejected event.
      *
-     * 获取文件数。
-     *
-     * @return the number of event files / 文件数
+     * 记录被拒绝的事件数。
      */
-    public static long getEventFiles() {
-        return EVENT_FILES.get();
+    public static void recordRejected() {
+        if (accepting) {
+            REJECTED_EVENTS.incrementAndGet();
+        }
+    }
+
+    /**
+     * Gets the total number of produced events.
+     *
+     * 获取产生的总事件数。
+     *
+     * @return the total number of produced events / 产生的总事件数
+     */
+    public static long getProducedEvents() {
+        return PRODUCED_EVENTS.get();
+    }
+
+    /**
+     * Gets the total number of routed events.
+     *
+     * 获取路由处理后的事件数。
+     *
+     * @return the number of routed events / 路由事件数
+     */
+    public static long getRoutedEvents() {
+        return ROUTED_EVENTS.get();
+    }
+
+    /**
+     * Gets the total number of consumed events.
+     *
+     * 获取 Worker 消费的总事件数。
+     *
+     * @return the number of consumed events / 消费事件数
+     */
+    public static long getConsumedEvents() {
+        return CONSUMED_EVENTS.get();
+    }
+
+    /**
+     * Gets the total number of rejected events.
+     *
+     * 获取被拒绝的总事件数。
+     *
+     * @return the number of rejected events / 拒绝事件数
+     */
+    public static long getRejectedEvents() {
+        return REJECTED_EVENTS.get();
     }
 
     /**
@@ -91,16 +145,20 @@ public class LogMetrics {
      */
     public static void reset() {
         accepting = true;
-        ACCEPT_EVENTS.set(0);
-        EVENT_FILES.set(0);
+        PRODUCED_EVENTS.set(0);
+        ROUTED_EVENTS.set(0);
+        CONSUMED_EVENTS.set(0);
+        REJECTED_EVENTS.set(0);
     }
 
     /**
      * 显示所有计数指标
      */
     public static String info() {
-        return "ACCEPT_EVENTS:" + ACCEPT_EVENTS.get() + "\n" +
-                "EVENT_FILES:" + EVENT_FILES.get();
+        return "PRODUCED_EVENTS:" + PRODUCED_EVENTS.get() + "\n" +
+                "ROUTED_EVENTS:" + ROUTED_EVENTS.get() + "\n" +
+                "CONSUMED_EVENTS:" + CONSUMED_EVENTS.get() + "\n" +
+                "REJECTED_EVENTS:" + REJECTED_EVENTS.get();
     }
 
 }
