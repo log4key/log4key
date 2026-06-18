@@ -164,6 +164,7 @@ public class Mailbox {
                 slot.ready = true;
 
                 // 背压检查：采样降低频率，每 256 次 offer 检测一次
+                //noinspection NonAtomicOperationOnVolatileField
                 if (++offerSampleCounter % BACKPRESSURE_SAMPLE_INTERVAL == 0) {
                     checkBackpressure();
                 }
@@ -307,6 +308,7 @@ public class Mailbox {
      * @param n 输入值
      * @return 不小于 n 的最小 2 的幂
      */
+    @SuppressWarnings("DuplicatedCode")
     static int roundUpToPowerOfTwo(int n) {
         if (n <= 1) {
             return 1;

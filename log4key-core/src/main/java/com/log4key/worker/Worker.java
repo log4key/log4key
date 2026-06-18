@@ -8,10 +8,11 @@ package com.log4key.worker;
 import com.log4key.channel.FileChannel;
 import com.log4key.channel.FileChannelManager;
 import com.log4key.internal.InternalLogger;
-import com.log4key.metrics.IoMetrics;
+import com.log4key.metrics.LogMetrics;
 import com.log4key.path.PathKey;
 
 import java.io.IOException;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * 单线程 Worker，消费 Mailbox 中的写入任务，管理 FileChannelManager。
@@ -58,9 +59,6 @@ public class Worker implements Runnable {
 
     /** 上次 idle 扫描时间 */
     private long lastIdleScanTime;
-
-    /** 上次处理的 PathKey（用于检测文件切换，统计 IoMetrics.recordFileSwitch()） */
-    private PathKey lastPathKey;
 
     /**
      * 构造 Worker 实例。
@@ -113,22 +111,27 @@ public class Worker implements Runnable {
                 Runnable task = mailbox.poll();
                 if (task == null) {
                     // 队列为空，短暂休眠避免空转
-                    Thread.sleep(1);
+                    // 替换掉 Thread.sleep(1)，并处理中断
+                    LockSupport.parkNanos(1_000_000L); // 1ms，但实际精度更高
+                    // parkNanos 不抛 InterruptedException，需要检查中断标志
+                    if (Thread.currentThread().isInterrupted()) {
+                        break;
+                    }
                     continue;
                 }
 
-                // 2. 处理写入任务（包含内部 flush 逻辑）
+                // 2. 记录消费统计
+                LogMetrics.recordConsumed();
+
+                // 3. 处理写入任务（包含内部 flush 逻辑）
                 processTask(task);
 
-                // 3. 定期执行 idle 扫描
+                // 4. 定期执行 idle 扫描
                 long now = System.currentTimeMillis();
                 if (now - lastIdleScanTime >= IDLE_SCAN_INTERVAL_MS) {
                     channelManager.idleScan();
                     lastIdleScanTime = now;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
             } catch (Exception e) {
                 logger.warn("Worker {} event loop error: {}", workerId, e.getMessage());
             }
@@ -167,12 +170,6 @@ public class Worker implements Runnable {
      * @throws IOException 如果写入失败
      */
     public void doWrite(PathKey pathKey, String formattedMessage) throws IOException {
-        // 检测 pathKey 变化，记录文件切换统计
-        if (lastPathKey != null && !lastPathKey.equals(pathKey)) {
-            IoMetrics.recordFileSwitch();
-        }
-        lastPathKey = pathKey;
-
         // 获取或创建 FileChannel
         FileChannel channel = channelManager.getOrCreate(pathKey);
 
@@ -232,15 +229,6 @@ public class Worker implements Runnable {
      */
     public boolean isStopped() {
         return stopped;
-    }
-
-    /**
-     * 获取 Worker 编号。
-     *
-     * @return workerId
-     */
-    public int getWorkerId() {
-        return workerId;
     }
 
     /**
