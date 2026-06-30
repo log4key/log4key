@@ -235,27 +235,26 @@ public class FileChannelManagerTest {
     }
 
     /**
-     * 测试 calculatePerWorkerLimit 静态方法。
+     * 测试 calculateGlobalLimit 静态方法。
      */
     @Test
-    public void testCalculatePerWorkerLimit() {
+    public void testCalculateGlobalLimit() {
         // 测试基本计算逻辑
-        int limit = FileChannelManager.calculatePerWorkerLimit(64, 4);
+        int limit = FileChannelManager.calculateGlobalLimit(64);
         // ulimit 默认 1024，globalMaxOpenChannels = 1024 * 0.2 = 204
-        // perWorker = 204 / 4 = 51
-        // min(51, 64) = 51
-        assertTrue("perWorkerLimit 应 > 0", limit > 0);
-        assertTrue("perWorkerLimit 应 <= maxFileWriters", limit <= 64);
+        // min(204, 64) = 64
+        assertTrue("globalLimit 应 > 0", limit > 0);
+        assertTrue("globalLimit 应 <= maxFileWriters", limit <= 64);
     }
 
     /**
-     * 测试 calculatePerWorkerLimit 至少返回 1。
+     * 测试 calculateGlobalLimit 至少返回 1。
      */
     @Test
-    public void testCalculatePerWorkerLimit_MinimumOne() {
-        // 即使 maxFileWriters=1 且 workerCount 很大，也应至少返回 1
-        int limit = FileChannelManager.calculatePerWorkerLimit(1, 100);
-        assertTrue("perWorkerLimit 至少为 1", limit >= 1);
+    public void testCalculateGlobalLimit_MinimumOne() {
+        // 即使 maxFileWriters=1，也应至少返回 1
+        int limit = FileChannelManager.calculateGlobalLimit(1);
+        assertTrue("globalLimit 至少为 1", limit >= 1);
     }
 
     /**

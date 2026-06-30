@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.log4key.internal.InternalLogger;
@@ -44,6 +45,18 @@ public class FileChannelManager {
 
     /** 全局缓存未命中计数（跨所有实例） */
     private static final AtomicLong totalMisses = new AtomicLong(0);
+
+    /**
+     * 全局当前打开 Channel 数（跨所有 Worker 实例）。
+     *
+     * 并发说明：使用 AtomicInteger 保证增减操作的原子性，但不保证 check-then-act 的原子性。
+     * getOrCreate() 中 openChannelCount.get() >= maxOpenChannels 的检查与后续 increment 之间存在窗口，
+     * 可能导致总数短暂超过上限。这是可接受的：
+     * 1. 超限幅度极小（最多 workerCount 个并发窗口）
+     * 2. 超限是临时状态，后续 evictLRU 会自然回收
+     * 3. 相比加锁，这种宽松策略的性能收益远大于少量超限的代价
+     */
+    private static final AtomicInteger openChannelCount = new AtomicInteger(0);
 
     /** Channel 映射表，accessOrder=true 实现 LRU */
     private final LinkedHashMap<PathKey, FileChannel> channelMap;
@@ -128,7 +141,7 @@ public class FileChannelManager {
 
         // 2. 未命中：检查容量，必要时淘汰
         totalMisses.incrementAndGet();
-        if (channelMap.size() >= maxOpenChannels) {
+        if (openChannelCount.get() >= maxOpenChannels) {
             evictLRU();
         }
 
@@ -139,6 +152,7 @@ public class FileChannelManager {
 
         // 4. 放入映射表
         channelMap.put(pathKey, channel);
+        openChannelCount.incrementAndGet();
 
         // 5. 统计：记录文件写入
         IoMetrics.recordFileTouched();
@@ -175,6 +189,7 @@ public class FileChannelManager {
         }
 
         it.remove();
+        openChannelCount.decrementAndGet();
         logger.debug("FileChannel evicted (LRU): pathKey={}, remaining={}", pathKey, channelMap.size());
     }
 
@@ -209,6 +224,7 @@ public class FileChannelManager {
 
                 it.remove();
                 removedCount++;
+                openChannelCount.decrementAndGet();
                 logger.debug("FileChannel idle closed: pathKey={}", pathKey);
             }
         }
@@ -238,7 +254,9 @@ public class FileChannelManager {
                 logger.warn("Failed to close FileChannel: pathKey={}, error={}", entry.getKey(), e.getMessage());
             }
         }
+        int removed = channelMap.size();
         channelMap.clear();
+        openChannelCount.addAndGet(-removed);
         logger.debug("All FileChannels closed");
     }
 
@@ -290,36 +308,32 @@ public class FileChannelManager {
     // ---- 静态方法：FD 动态计算 ----
 
     /**
-     * 计算单个 Worker 的 FD 上限。
+     * 计算全局 FD 上限（所有 Worker 共享）。
      *
      * 计算逻辑：
      * 1. 通过 OperatingSystemMXBean 获取系统 ulimit
      * 2. globalMaxOpenChannels = 系统 ulimit × 0.2（动态计算，非配置值）
-     * 3. perWorkerLimit = min(globalMaxOpenChannels / workerCount, maxFileWriters)
+     * 3. result = min(globalMaxOpenChannels, maxFileWriters)
      *
      * @param maxFileWriters 配置的最大文件写入器数（作为上限）
-     * @param workerCount    Worker 数量
-     * @return 单个 Worker 的 FD 上限
+     * @return 全局 FD 上限
      */
-    public static int calculatePerWorkerLimit(int maxFileWriters, int workerCount) {
+    public static int calculateGlobalLimit(int maxFileWriters) {
         // 1. 获取系统 ulimit
         long systemUlimit = getSystemULimit();
 
         // 2. 计算全局最大打开 Channel 数（动态计算，非配置值）
         long globalMaxOpenChannels = (long) (systemUlimit * ULIMIT_RESERVATION_RATIO);
 
-        // 3. 计算每个 Worker 的上限
-        long perWorkerLimit = globalMaxOpenChannels / workerCount;
-
-        // 4. 取 min(perWorker, maxFileWriters)，且至少为 1
-        int result = (int) Math.min(perWorkerLimit, maxFileWriters);
+        // 3. 取 min(globalMaxOpenChannels, maxFileWriters)，且至少为 1
+        int result = (int) Math.min(globalMaxOpenChannels, maxFileWriters);
         if (result < 1) {
             result = 1;
         }
 
-        logger.debug("FD 动态计算: systemUlimit={}, globalMaxOpenChannels={}, workerCount={}, "
-                + "maxFileWriters={}, perWorkerLimit={}",
-                systemUlimit, globalMaxOpenChannels, workerCount, maxFileWriters, result);
+        logger.debug("FD 全局共享计算: systemUlimit={}, globalMaxOpenChannels={}, "
+                + "maxFileWriters={}, result={}",
+                systemUlimit, globalMaxOpenChannels, maxFileWriters, result);
 
         return result;
     }

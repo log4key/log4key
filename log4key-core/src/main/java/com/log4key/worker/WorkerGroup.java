@@ -73,15 +73,15 @@ public class WorkerGroup implements LogExecutor {
         this.mailboxes = new Mailbox[this.workerCount];
         this.workers = new Worker[this.workerCount];
 
-        // 计算每个 Worker 的 FD 上限
-        int perWorkerLimit = FileChannelManager.calculatePerWorkerLimit(maxFileWriters, this.workerCount);
+        // 计算全局 FD 上限（所有 Worker 共享）
+        int globalLimit = FileChannelManager.calculateGlobalLimit(maxFileWriters);
 
         // 创建 Mailbox 和 Worker
         for (int i = 0; i < this.workerCount; i++) {
             mailboxes[i] = new Mailbox(queueCapacity);
 
             FileChannelManager channelManager = new FileChannelManager(
-                    perWorkerLimit, idleTimeoutMs, batchSize, flushIntervalMs,
+                    globalLimit, idleTimeoutMs, batchSize, flushIntervalMs,
                     highWaterMark, maxFileSize, charset, initialBufferSize);
 
             workers[i] = new Worker(i, mailboxes[i], channelManager,
