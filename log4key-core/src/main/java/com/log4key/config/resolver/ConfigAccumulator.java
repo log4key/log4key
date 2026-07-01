@@ -342,6 +342,31 @@ public final class ConfigAccumulator {
         if (!contains(ConfigKeys.INCLUDE_LOCATION_KEY)) {
             with(ConfigKeys.INCLUDE_LOCATION_KEY, ConfigKeys.INCLUDE_LOCATION_KEY.defaultValue());
         }
+
+        // 补充存储参数：最大打开文件数
+        if (!contains(ConfigKeys.MAX_OPEN_FILES_KEY)) {
+            with(ConfigKeys.MAX_OPEN_FILES_KEY, ConfigKeys.MAX_OPEN_FILES_KEY.defaultValue());
+        }
+
+        // 补充存储参数：Flush 字节阈值
+        if (!contains(ConfigKeys.BATCH_SIZE_KEY)) {
+            with(ConfigKeys.BATCH_SIZE_KEY, ConfigKeys.BATCH_SIZE_KEY.defaultValue());
+        }
+
+        // 补充存储参数：Flush 时间间隔
+        if (!contains(ConfigKeys.FLUSH_INTERVAL_KEY)) {
+            with(ConfigKeys.FLUSH_INTERVAL_KEY, ConfigKeys.FLUSH_INTERVAL_KEY.defaultValue());
+        }
+
+        // 补充存储参数：Buffer 扩容回收阈值
+        if (!contains(ConfigKeys.HIGH_WATER_MARK_KEY)) {
+            with(ConfigKeys.HIGH_WATER_MARK_KEY, ConfigKeys.HIGH_WATER_MARK_KEY.defaultValue());
+        }
+
+        // 补充存储参数：StringBuilder 初始容量
+        if (!contains(ConfigKeys.INITIAL_BUFFER_SIZE_KEY)) {
+            with(ConfigKeys.INITIAL_BUFFER_SIZE_KEY, ConfigKeys.INITIAL_BUFFER_SIZE_KEY.defaultValue());
+        }
     }
 
     /**

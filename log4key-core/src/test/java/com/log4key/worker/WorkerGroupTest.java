@@ -39,7 +39,7 @@ public class WorkerGroupTest {
     /** 测试参数（按推荐值） */
     private static final int WORKER_COUNT = 2;
     private static final int QUEUE_CAPACITY = 8;
-    private static final int MAX_FILE_WRITERS = 64;
+    private static final int MAX_OPEN_FILES = 64;
     private static final long IDLE_TIMEOUT_MS = 100L;
     private static final long BATCH_SIZE = 4096L;
     private static final long FLUSH_INTERVAL_MS = 1000L;
@@ -62,7 +62,7 @@ public class WorkerGroupTest {
 
         // 创建 WorkerGroup 实例
         workerGroup = new WorkerGroup(
-                WORKER_COUNT, QUEUE_CAPACITY, MAX_FILE_WRITERS,
+                WORKER_COUNT, QUEUE_CAPACITY, MAX_OPEN_FILES,
                 IDLE_TIMEOUT_MS, BATCH_SIZE, FLUSH_INTERVAL_MS,
                 HIGH_WATER_MARK, INITIAL_BUFFER_SIZE, MAX_FILE_SIZE, CHARSET);
     }
@@ -149,7 +149,7 @@ public class WorkerGroupTest {
     @Test
     public void testWorkerCountPowerOfTwoCorrection() {
         WorkerGroup wg = new WorkerGroup(
-                3, QUEUE_CAPACITY, MAX_FILE_WRITERS,
+                3, QUEUE_CAPACITY, MAX_OPEN_FILES,
                 IDLE_TIMEOUT_MS, BATCH_SIZE, FLUSH_INTERVAL_MS,
                 HIGH_WATER_MARK, INITIAL_BUFFER_SIZE, MAX_FILE_SIZE, CHARSET);
 

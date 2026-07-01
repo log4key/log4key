@@ -244,7 +244,7 @@ public class FileChannelManagerTest {
         // ulimit 默认 1024，globalMaxOpenChannels = 1024 * 0.2 = 204
         // min(204, 64) = 64
         assertTrue("globalLimit 应 > 0", limit > 0);
-        assertTrue("globalLimit 应 <= maxFileWriters", limit <= 64);
+        assertTrue("globalLimit 应 <= maxOpenFiles", limit <= 64);
     }
 
     /**
@@ -252,7 +252,7 @@ public class FileChannelManagerTest {
      */
     @Test
     public void testCalculateGlobalLimit_MinimumOne() {
-        // 即使 maxFileWriters=1，也应至少返回 1
+        // 即使 maxOpenFiles=1，也应至少返回 1
         int limit = FileChannelManager.calculateGlobalLimit(1);
         assertTrue("globalLimit 至少为 1", limit >= 1);
     }

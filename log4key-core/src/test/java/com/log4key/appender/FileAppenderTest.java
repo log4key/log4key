@@ -69,7 +69,7 @@ public class FileAppenderTest {
         workerGroup = new WorkerGroup(
                 2,              // workerCount（必须是 2 的幂）
                 8192,           // queueCapacity
-                64,             // maxFileWriters
+                64,             // maxOpenFiles
                 1800000L,       // idleTimeoutMs
                 4096L,          // batchSize
                 1000L,          // flushIntervalMs

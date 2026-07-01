@@ -57,12 +57,12 @@ public class ConfigKeysV2Test {
     }
 
     /**
-     * 测试 MAX_FILE_WRITERS_KEY 默认值已改为 64
+     * 测试 MAX_OPEN_FILES_KEY 默认值已改为 64
      */
     @Test
-    public void testMaxFileWritersKeyDefault() {
-        ConfigKey<Integer> key = ConfigKeys.MAX_FILE_WRITERS_KEY;
-        assertEquals("MAX_FILE_WRITERS_KEY 默认值应为 64", Integer.valueOf(64), key.defaultValue());
+    public void testMaxOpenFilesKeyDefault() {
+        ConfigKey<Integer> key = ConfigKeys.MAX_OPEN_FILES_KEY;
+        assertEquals("MAX_OPEN_FILES_KEY 默认值应为 64", Integer.valueOf(64), key.defaultValue());
     }
 
     /**
@@ -83,6 +83,7 @@ public class ConfigKeysV2Test {
         assertTrue("ALL_KEYS 应包含 FLUSH_INTERVAL_KEY", ConfigKeys.ALL_KEYS.containsKey("flushInterval"));
         assertTrue("ALL_KEYS 应包含 HIGH_WATER_MARK_KEY", ConfigKeys.ALL_KEYS.containsKey("highWaterMark"));
         assertTrue("ALL_KEYS 应包含 INITIAL_BUFFER_SIZE_KEY", ConfigKeys.ALL_KEYS.containsKey("initialBufferSize"));
+        assertTrue("ALL_KEYS 应包含 MAX_OPEN_FILES_KEY", ConfigKeys.ALL_KEYS.containsKey("maxOpenFiles"));
     }
 
     /**

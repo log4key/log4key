@@ -48,7 +48,7 @@ public class WorkerGroup implements LogExecutor {
      *
      * @param workerCount       Worker 数量
      * @param queueCapacity     Mailbox RingBuffer 容量
-     * @param maxFileWriters    最大文件写入器数（作为 FD 上限）
+     * @param maxOpenFiles      最大打开文件数（作为 FD 上限）
      * @param idleTimeoutMs     空闲超时（毫秒）
      * @param batchSize         Flush 字节阈值
      * @param flushIntervalMs   Flush 时间间隔（毫秒）
@@ -57,7 +57,7 @@ public class WorkerGroup implements LogExecutor {
      * @param maxFileSize       最大文件大小（字节）
      * @param charset           字符编码
      */
-    public WorkerGroup(int workerCount, int queueCapacity, int maxFileWriters,
+    public WorkerGroup(int workerCount, int queueCapacity, int maxOpenFiles,
                        long idleTimeoutMs, long batchSize, long flushIntervalMs,
                        long highWaterMark, int initialBufferSize, long maxFileSize,
                        String charset) {
@@ -74,7 +74,7 @@ public class WorkerGroup implements LogExecutor {
         this.workers = new Worker[this.workerCount];
 
         // 计算全局 FD 上限（所有 Worker 共享）
-        int globalLimit = FileChannelManager.calculateGlobalLimit(maxFileWriters);
+        int globalLimit = FileChannelManager.calculateGlobalLimit(maxOpenFiles);
 
         // 创建 Mailbox 和 Worker
         for (int i = 0; i < this.workerCount; i++) {

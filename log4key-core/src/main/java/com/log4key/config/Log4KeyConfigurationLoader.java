@@ -291,6 +291,9 @@ public class Log4KeyConfigurationLoader {
                 // 解析configuration节点（全局配置）
                 parseConfiguration(document, configMap);
 
+                // 解析storage节点（存储参数）
+                parseStorage(document, configMap);
+
                 // 解析formatters节点
                 parseFormattersConfig(document, configMap);
 
@@ -403,6 +406,29 @@ public class Log4KeyConfigurationLoader {
                         String childValue = childElement.getTextContent().trim();
                         configMap.put(childName, childValue);
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * 解析storage节点，提取全局存储参数
+     * @param document XML文档
+     * @param configMap 配置Map
+     */
+    private static void parseStorage(org.w3c.dom.Document document, Map<String, Object> configMap) {
+        org.w3c.dom.NodeList storageNodes = document.getElementsByTagName("storage");
+        if (storageNodes.getLength() > 0) {
+            org.w3c.dom.Element storage = (org.w3c.dom.Element) storageNodes.item(0);
+
+            org.w3c.dom.NodeList children = storage.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                org.w3c.dom.Node child = children.item(i);
+                if (child.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                    org.w3c.dom.Element childElement = (org.w3c.dom.Element) child;
+                    String childName = childElement.getTagName();
+                    String childValue = childElement.getTextContent().trim();
+                    configMap.put(childName, childValue);
                 }
             }
         }

@@ -29,7 +29,7 @@ public class LogExecutorFactory {
     public static WorkerGroup createWorkerGroup(Log4KeyConfiguration config) {
         int workerCount = config.getCorePoolSize();
         int queueCapacity = config.getExecutorQueueSize();
-        int maxFileWriters = config.getMaxFileWriters();
+        int maxOpenFiles = config.getMaxOpenFiles();
         long writerIdleTimeout = ConfigKeys.WRITER_IDLE_TIMEOUT_KEY.defaultValue();
         long batchSize = config.getBatchSize();
         long flushIntervalMs = config.getFlushInterval();
@@ -39,7 +39,7 @@ public class LogExecutorFactory {
         String charset = config.getDefaultCharset();
 
         WorkerGroup workerGroup = new WorkerGroup(
-                workerCount, queueCapacity, maxFileWriters,
+                workerCount, queueCapacity, maxOpenFiles,
                 writerIdleTimeout, batchSize, flushIntervalMs,
                 highWaterMark, initialBufferSize, maxFileSize, charset);
 

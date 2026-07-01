@@ -25,6 +25,20 @@
         <!-- JVM 关闭时是否自动 flush / stop -->
         <shutdownHook>true</shutdownHook>
 
+        <!-- 全局存储参数 -->
+        <storage>
+            <!-- 最大打开文件数，超过此值需确保 ulimit -n >= 填充值 -->
+            <maxOpenFiles>1024</maxOpenFiles>
+            <!-- Flush 字节阈值 -->
+            <batchSize>4096</batchSize>
+            <!-- Flush 时间间隔（毫秒） -->
+            <flushInterval>1000</flushInterval>
+            <!-- Buffer 扩容回收阈值 -->
+            <highWaterMark>32768</highWaterMark>
+            <!-- StringBuilder 初始容量 -->
+            <initialBufferSize>4096</initialBufferSize>
+        </storage>
+
     </configuration>
 
     <!-- =====================================================
@@ -76,9 +90,6 @@
 
             <!-- 控制是否同时输出到默认 CONSOLE -->
             <consoleEnabled>true</consoleEnabled>
-
-            <!-- 最大打开文件数，默认 1024，Linux系统下超过此值需要确保 ulimit -n >= 填充值 -->
-            <maxFileWriters>1024</maxFileWriters>
 
             <!-- 复用全局 formatter -->
             <formatter ref="TEXT_DEFAULT"/>

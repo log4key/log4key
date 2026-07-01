@@ -197,9 +197,9 @@ public final class ConfigKeys {
     public static final String WRITER_IDLE_TIMEOUT = "writerIdleTimeout";
 
     /**
-     * 最大文件写入器数量
+     * 最大打开文件数
      */
-    public static final String MAX_FILE_WRITERS = "maxFileWriters";
+    public static final String MAX_OPEN_FILES = "maxOpenFiles";
 
     /**
      * Flush 字节阈值
@@ -329,10 +329,10 @@ public final class ConfigKeys {
         new ConfigKey<>(WRITER_IDLE_TIMEOUT, Long.class, 1800000L);
 
     /**
-     * 最大文件写入器数量（语义化键）
+     * 最大打开文件数（语义化键）
      */
-    public static final ConfigKey<Integer> MAX_FILE_WRITERS_KEY =
-        new ConfigKey<>(MAX_FILE_WRITERS, Integer.class, 64);
+    public static final ConfigKey<Integer> MAX_OPEN_FILES_KEY =
+        new ConfigKey<>(MAX_OPEN_FILES, Integer.class, 64);
 
     /**
      * Flush 字节阈值（语义化键）
@@ -464,7 +464,7 @@ public final class ConfigKeys {
         allKeys.put(EXECUTOR_TYPE_KEY.name(), EXECUTOR_TYPE_KEY);
         allKeys.put(EXECUTOR_THREADS_SIZE_KEY.name(), EXECUTOR_THREADS_SIZE_KEY);
         allKeys.put(EXECUTOR_QUEUE_SIZE_KEY.name(), EXECUTOR_QUEUE_SIZE_KEY);
-        allKeys.put(MAX_FILE_WRITERS_KEY.name(), MAX_FILE_WRITERS_KEY);
+        allKeys.put(MAX_OPEN_FILES_KEY.name(), MAX_OPEN_FILES_KEY);
         allKeys.put(MAX_FILE_SIZE_MB_KEY.name(), MAX_FILE_SIZE_MB_KEY);
         allKeys.put(MAX_BACKUP_INDEX_KEY.name(), MAX_BACKUP_INDEX_KEY);
         allKeys.put(BATCH_SIZE_KEY.name(), BATCH_SIZE_KEY);

@@ -258,11 +258,11 @@ public class Log4KeyConfiguration {
     }
 
     /**
-     * 获取最大文件写入器数量（作为 maxOpenChannels 上限值使用）
-     * @return 最大文件写入器数量
+     * 获取最大打开文件数（作为 maxOpenChannels 上限值使用）
+     * @return 最大打开文件数
      */
-    public int getMaxFileWriters() {
-        return structuredConfig.getGlobalConfig(ConfigKeys.MAX_FILE_WRITERS_KEY);
+    public int getMaxOpenFiles() {
+        return structuredConfig.getGlobalConfig(ConfigKeys.MAX_OPEN_FILES_KEY);
     }
 
     /**

@@ -130,7 +130,7 @@ public class XmlConfigConverter implements ConfigConverter {
             return Boolean.class;
         } else if (key.endsWith(".threads") || key.endsWith(".queueSize") ||
                   key.endsWith(".bufferSize") || key.endsWith(".maxFileSizeMB") ||
-                  key.endsWith(".maxBackupIndex")) {
+                  key.endsWith(".maxBackupIndex") || key.endsWith(".maxOpenFiles")) {
             return Integer.class;
         } else if (key.endsWith(".flushInterval")) {
             return Long.class;
