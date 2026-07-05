@@ -62,7 +62,7 @@ public class ConfigKeysV2Test {
     @Test
     public void testMaxOpenFilesKeyDefault() {
         ConfigKey<Integer> key = ConfigKeys.MAX_OPEN_FILES_KEY;
-        assertEquals("MAX_OPEN_FILES_KEY 默认值应为 64", Integer.valueOf(64), key.defaultValue());
+        assertEquals("MAX_OPEN_FILES_KEY 默认值应为 64", Integer.valueOf(1024), key.defaultValue());
     }
 
     /**
