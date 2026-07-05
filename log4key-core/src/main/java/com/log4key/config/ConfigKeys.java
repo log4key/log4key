@@ -332,7 +332,7 @@ public final class ConfigKeys {
      * 最大打开文件数（语义化键）
      */
     public static final ConfigKey<Integer> MAX_OPEN_FILES_KEY =
-        new ConfigKey<>(MAX_OPEN_FILES, Integer.class, 64);
+        new ConfigKey<>(MAX_OPEN_FILES, Integer.class, 1024);
 
     /**
      * Flush 字节阈值（语义化键）
