@@ -278,4 +278,81 @@ public class FileChannelManagerTest {
 
         assertEquals("IoMetrics 拒绝采集时 FILE_TOUCHED 应为 0", 0L, IoMetrics.getFileTouched());
     }
+
+    /**
+     * 测试 maintainChannels batch timeout：滞留数据超过 flushIntervalMs 时被 write + flush。
+     */
+    @Test
+    public void testMaintainChannels_BatchTimeout() throws IOException, InterruptedException {
+        // 使用 flushInterval=0 的独立 manager，确保 batch timeout 立即触发
+        FileChannelManager mtManager = new FileChannelManager(3, 100, 4096, 0, 32768, 10 * 1024 * 1024, "UTF-8", 4096);
+        try {
+            IoMetrics.reset();
+
+            PathKey pk1 = new PathKey(TEST_DIR, "mt_batch_test.log");
+            FileChannel channel = mtManager.getOrCreate(pk1);
+
+            String message = "test log message\n";
+            channel.append(message);
+
+            assertEquals("estimatedBytes 应大于 0", message.length() * 2L, channel.getEstimatedBytes());
+            assertFalse("shouldWrite 应为 false（未达到 batchSize）", channel.shouldWrite(4096));
+
+            // maintainChannels: flushInterval=0 → batch timeout 立即触发 write
+            mtManager.maintainChannels(0);
+
+            // 验证数据已写入
+            assertEquals("batch timeout write 后 estimatedBytes 应为 0", 0L, channel.getEstimatedBytes());
+            assertEquals("WRITE_CALLS 应为 1", 1L, IoMetrics.getWriteCalls());
+            assertEquals("FLUSH_CALLS 应为 1", 1L, IoMetrics.getFlushCalls());
+        } finally {
+            mtManager.closeAll();
+        }
+    }
+
+    /**
+     * 测试 maintainChannels 保留 batch：未过期数据不被 write。
+     */
+    @Test
+    public void testMaintainChannels_PreservesBatch() throws IOException {
+        PathKey pk1 = new PathKey(TEST_DIR, "mt_batch_preserve.log");
+        FileChannel channel = manager.getOrCreate(pk1);
+
+        String message = "short message\n";
+        channel.append(message);
+
+        assertEquals("estimatedBytes 应大于 0", message.length() * 2L, channel.getEstimatedBytes());
+
+        // flushIntervalMs=1000，数据刚写入 → batch timeout 未触发
+        manager.maintainChannels(1000);
+
+        // 验证缓冲区仍保留数据（未被 write）
+        assertEquals("maintainChannels 不应清空未过期数据", message.length() * 2L, channel.getEstimatedBytes());
+    }
+
+    /**
+     * 测试 maintainChannels flush 不越界 write。
+     */
+    @Test
+    public void testMaintainChannels_FlushDoesNotWrite() throws IOException {
+        // flushInterval=0 但 batch timeout 条件不满足（lastAccessTime 刚更新）
+        // shouldFlush 返回 true（时间条件），但 flush 不应越界 write
+        FileChannelManager mtManager = new FileChannelManager(3, 100, 4096, 0, 32768, 10 * 1024 * 1024, "UTF-8", 4096);
+        try {
+            IoMetrics.reset();
+
+            PathKey pk1 = new PathKey(TEST_DIR, "mt_flush_only.log");
+            FileChannel channel = mtManager.getOrCreate(pk1);
+            // 只 touch 不 append，estimatedBytes=0
+            channel.touch();
+
+            // maintainChannels: shouldFlush 返回 true，但 estimatedBytes=0，flush 不触发 write
+            mtManager.maintainChannels(0);
+
+            assertEquals("无数据时 WRITE_CALLS 应为 0", 0L, IoMetrics.getWriteCalls());
+            // flush() 对空 BufferedWriter 是 no-op，但仍会计入 FLUSH_CALLS
+        } finally {
+            mtManager.closeAll();
+        }
+    }
 }

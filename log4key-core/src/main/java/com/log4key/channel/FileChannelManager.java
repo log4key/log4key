@@ -237,6 +237,38 @@ public class FileChannelManager {
     }
 
     /**
+     * 周期性 Channel 维护：batch timeout + flush。
+     *
+     * 两个独立职责：
+     * 1. Batch timeout — StringBuilder 中数据滞留超过 flushIntervalMs → 强制 write
+     * 2. Flush — 仅负责将 BufferedWriter 刷盘，不越界处理 StringBuilder 数据
+     *
+     * 注意：无 synchronized，此方法仅在 Worker 线程内调用，与 doWrite、getOrCreate、
+     * idleScan 处于同一线程，不存在并发。
+     */
+    public void maintainChannels(long flushIntervalMs) {
+        long now = System.currentTimeMillis();
+        for (FileChannel channel : channelMap.values()) {
+            try {
+                // 独立判断 1: batch timeout（基于 lastAccessTime）
+                // 唯一负责 write 的阶段
+                if (channel.getEstimatedBytes() > 0
+                        && (now - channel.getLastAccessTime()) >= flushIntervalMs) {
+                    channel.write(highWaterMark, initialBufferSize);
+                }
+
+                // 独立判断 2: flush（基于 lastFlushTime + highWaterMark）
+                // 只负责 flush，不越界 write。若数据仍在 StringBuilder → flush() 是廉价 no-op
+                if (channel.shouldFlush(flushIntervalMs, highWaterMark)) {
+                    channel.flush();
+                }
+            } catch (IOException e) {
+                logger.warn("Failed to maintain FileChannel: error={}", e.getMessage());
+            }
+        }
+    }
+
+    /**
      * 关闭所有 FileChannel。
      *
      * 遍历 channelMap，对每个 Channel 执行 flush → close，最后清空映射表。
