@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.log4key.spring.autoconfigure.Log4KeyAutoConfiguration,\
+com.log4key.spring.autoconfigure.Log4KeyWebAutoConfiguration

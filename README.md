@@ -147,6 +147,9 @@ pay order
 
 This example shows how to use Log4Key in a Spring Boot application.
 
+> Log4Key **does not depend on Spring at all**: adding `com.log4key:log4key-all` together with a `log4key.xml` is enough to use it in any Spring Boot application (that is the plain usage shown below).
+> If you additionally want automatic initialization, context-level graceful shutdown and a built-in local log query endpoint, add the optional `log4key-spring-boot-starter` module — see the dedicated section at the end of this chapter.
+
 ### Minimal Usage
 
 ```text
@@ -155,7 +158,7 @@ Log4KeyLogger logger = Log4KeyLoggerFactory.getLog4KeyLogger(Demo.class);
 ILogKey key = DefaultLogKey.of("user-1001");
 
 logger.info(key, "Received message: {}", "hello");
-````
+```
 
 ### Run the Example
 
@@ -190,9 +193,81 @@ logs/info/20260521/
 
 ### Notes
 
-* Works seamlessly with Spring Boot applications
-* No special configuration required
-* Key-based routing behavior is identical to plain Java usage
+* Works seamlessly with Spring Boot applications — no extra configuration beyond having `log4key-all` and `log4key.xml` on the classpath.
+* Key-based routing behaves exactly as in plain Java usage.
+* Shutdown is covered by the JVM hook registered by core; use the starter below if you want the Spring context shutdown to drain and close Log4Key.
+
+---
+
+### Log4Key Spring Boot Starter
+
+`log4key-spring-boot-starter` is an **optional** module that adds three things on top of the plain usage:
+
+1. **Startup initialization** — triggers `LogManager.ensureInitialized` on context startup, reusing core's existing configuration loading (idempotent);
+2. **Graceful shutdown** — calls `LogManager.shutdown()` on context close, draining pending writes and closing all appenders (the JVM hook remains a process-exit fallback);
+3. **Local log query endpoint** `/log4key` — registered through a plain `HttpServlet` + `ServletRegistrationBean`, with **no Spring MVC** and no new `log4key.*` properties.
+
+#### Add the starter
+
+```groovy
+dependencies {
+    // Log4Key itself: version chosen by the application, requires >= 0.3.1
+    implementation 'com.log4key:log4key-all:0.3.1'
+
+    // Spring Boot starter: auto-configuration + lifecycle + /log4key endpoint
+    implementation 'com.log4key:log4key-spring-boot-starter:<starter-version>'
+
+    // Servlet container; exclude spring-boot-starter-logging
+    // (Log4Key ships its own SLF4J 2.x provider and must not coexist with logback 1.2's SLF4J 1.7 binding)
+    implementation('org.springframework.boot:spring-boot-starter-web') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+```
+
+> Inside the starter, Log4Key (core / api / slf4j) and servlet-api are declared `compileOnly`: they are **not transitive and not version-pinned**, so the application must depend on `log4key-all` itself (**>= 0.3.1**). Runtime: Java 8 + Spring Boot 2.7.x (`javax.servlet`) + a servlet container.
+
+#### Configuration
+
+Reuse the existing Log4Key mechanism: put `log4key.xml` in `src/main/resources/` (`rootDirectory` is also the security boundary of the query API). The starter adds no configuration keys.
+
+#### Local log query API (`/log4key`)
+
+Adding the starter to a servlet web application registers `/log4key` and `/log4key/*` (enabled by default, no switch):
+
+| Request | Response |
+| :--- | :--- |
+| `GET /log4key`, `GET /log4key/<dir…>` | immediate sub-directories |
+| `GET /log4key/<dir…>?file=` | sub-directories + all files in that directory |
+| `GET /log4key/<dir…>?file=1001` | sub-directories + fuzzy file-name matches |
+| `GET /log4key/<file>` | **last page** of the file (1000 lines per page) |
+| `GET /log4key/<file>?page=2` | page 2 of the file |
+
+```bash
+curl http://localhost:8080/log4key
+# {"type":"directory","data":["info"]}
+
+curl "http://localhost:8080/log4key/info/20260911?file=user-1001"
+# {"type":"directory","data":[],"files":["user-1001.log"]}
+
+curl http://localhost:8080/log4key/info/20260911/user-1001.log
+# {"type":"file","page":1,"data":["2026-09-10 12:13:12.628  INFO [main] demo.App : ..."]}
+```
+
+You can also open `http://localhost:8080/log4key` and `http://localhost:8080/log4key/info` in a browser.
+
+- **Security boundary**: every path must stay inside `rootDirectory` (segment validation + canonical boundary check covering `../`, encoded traversal, drive letters and symlinks).
+- **Error shape**: `{"type":"error","code":<HTTP>,"message":"..."}`; messages only contain relative paths.
+- **Reads only flushed data**: writes are asynchronous (~1s flush interval), so the newest lines may be briefly invisible.
+- Full reference (classes / HTTP contract / error codes / limits): [log4key-spring-boot-starter API](docs/api/log4key-spring-boot-starter.md).
+
+#### Notes
+
+* The application must depend on Log4Key itself (`com.log4key:log4key-all`, **>= 0.3.1**); the starter does not bring it transitively.
+* With the starter, applications no longer need to call `LogManager.getInstance().shutdown()`.
+* The query endpoint is enabled by default with no switch; it reads only flushed data, does not recurse, and returns 1000 lines per page.
+* Non-servlet applications only get initialization/shutdown; `/log4key` is not registered.
+* `LogManager` is a JVM-level singleton, so it is not re-initialized within the same JVM after shutdown (devtools restarts are unsupported).
 
 ---
 
@@ -543,6 +618,9 @@ implementation 'com.log4key:log4key-all:1.0.0'
 
 ### Design
 - [Design Decisions](docs/design/design-decisions.md)
+
+### Spring Boot Starter
+- [API reference (classes / HTTP contract / error codes / limits)](docs/api/log4key-spring-boot-starter.md)
 
 ---
 

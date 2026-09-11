@@ -9,7 +9,23 @@ version = '1.0.0'
 sourceCompatibility = '1.8'
 
 dependencies {
-    implementation 'com.log4key:log4key-all:0.1.0'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // 应用端依赖 Log4Key 本体（api + core 聚合包）：版本由应用决定
+    implementation 'com.log4key:log4key-all:0.3.1'
+
+    // 本地 starter：只提供 Spring 集成（自动配置 / 生命周期 / /log4key 查询 Servlet），
+    // 内部对 Log4Key 全部为 compileOnly，不会传递 Log4Key 依赖
+    implementation project(':log4key-spring-boot-starter')
+
+    // Servlet 容器 + 示例端点。排除 spring-boot-starter-logging：
+    // Log4Key 自带 SLF4J 2.x provider，避免与 logback 1.2（SLF4J 1.7 绑定）并存产生冲突。
+    implementation('org.springframework.boot:spring-boot-starter-web') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+// 显式开启 -parameters：@PathVariable 依赖参数名（Spring Boot 插件默认会加，这里显式声明以防手工/IDE 编译时丢失）
+tasks.withType(JavaCompile) {
+    options.compilerArgs << '-parameters'
 }

@@ -140,6 +140,9 @@ pay order
 
 展示 Log4Key 在 Spring Boot 应用中的使用方法。
 
+> Log4Key **本身不依赖 Spring**：只要引入 `com.log4key:log4key-all` 并提供 `log4key.xml`，即可在任何 Spring Boot 应用中直接使用（下面即为这种直接用法）。
+> 若还需要「自动初始化 + 上下文优雅关闭 + 内置本地日志查询端点」，可再加可选模块 `log4key-spring-boot-starter`，见本章末尾的专门小节。
+
 ### 最小用法
 
 ```java
@@ -182,9 +185,82 @@ logs/info/yyyyMMdd/
 
 ### 注意事项
 
-- 与 Spring Boot 应用无缝集成
-- 无需额外配置
-- key 路由行为与纯 Java 使用一致
+- 与 Spring Boot 应用无缝集成，无需额外配置（classpath 上有 `log4key-all` 与 `log4key.xml` 即可）。
+- key 路由行为与纯 Java 使用一致。
+- 关闭由 core 注册的 JVM 关闭钩子兜底；若希望「Spring 上下文关闭时即排空并关闭」，使用下方的 starter。
+
+***
+
+### Log4Key Spring Boot Starter
+
+`log4key-spring-boot-starter` 是**可选**模块，在"直接使用"之上额外提供三件事：
+
+1. **启动初始化**：上下文启动时触发 `LogManager.ensureInitialized`，复用 core 既有配置加载（幂等）；
+2. **优雅关闭**：上下文关闭时调用 `LogManager.shutdown()`，排空未写日志并关闭全部 Appender（JVM 钩子仍作为进程退出兜底）；
+3. **本地日志查询端点** `/log4key`：基于原生 `HttpServlet` + `ServletRegistrationBean` 注册，**不引入 Spring MVC**，也不新增任何 `log4key.*` 配置项。
+
+#### 引入依赖
+
+```groovy
+dependencies {
+    // Log4Key 本体：由应用端决定版本，要求 >= 0.3.1
+    implementation 'com.log4key:log4key-all:0.3.1'
+
+    // Spring Boot starter：自动配置 + 生命周期 + /log4key 查询端点
+    implementation 'com.log4key:log4key-spring-boot-starter:<starter-version>'
+
+    // Servlet 容器；排除 spring-boot-starter-logging
+    // （Log4Key 自带 SLF4J 2.x provider，避免与 logback 1.2 的 SLF4J 1.7 绑定并存）
+    implementation('org.springframework.boot:spring-boot-starter-web') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+```
+
+> starter 对 Log4Key（core / api / slf4j）与 servlet-api 一律使用 `compileOnly`：**不向应用传递、也不锁定版本**，
+> 因此应用端必须自行依赖 `log4key-all`（**≥ 0.3.1**）。运行环境：Java 8 + Spring Boot 2.7.x（`javax.servlet`）+ servlet 容器。
+
+#### 配置
+
+沿用 Log4Key 现有配置方式：把 `log4key.xml` 放到 `src/main/resources/` 即生效（`rootDirectory` 同时是查询接口的安全边界）；starter 不新增任何配置项。
+
+#### 本地日志查询接口（`/log4key`）
+
+引入 starter 后，servlet Web 应用会自动注册 `/log4key` 与 `/log4key/*`（默认常开，无开关）：
+
+| 请求 | 返回 |
+| :--- | :--- |
+| `GET /log4key`、`GET /log4key/<dir…>` | 一级子目录列表 |
+| `GET /log4key/<dir…>?file=` | 子目录 + 该目录全部文件 |
+| `GET /log4key/<dir…>?file=1001` | 子目录 + 文件名模糊匹配结果 |
+| `GET /log4key/<file>` | 文件**最后一页**（每页固定 1000 行） |
+| `GET /log4key/<file>?page=2` | 文件第 2 页 |
+
+```bash
+curl http://localhost:8080/log4key
+# {"type":"directory","data":["info"]}
+
+curl "http://localhost:8080/log4key/info/20260911?file=user-1001"
+# {"type":"directory","data":[],"files":["user-1001.log"]}
+
+curl http://localhost:8080/log4key/info/20260911/user-1001.log
+# {"type":"file","page":1,"data":["2026-09-10 12:13:12.628  INFO [main] demo.App : ..."]}
+```
+
+也可以直接在浏览器打开 `http://localhost:8080/log4key`、`http://localhost:8080/log4key/info`。
+
+- **安全边界**：所有查询路径必须位于 `rootDirectory` 之内（段级校验 + canonical 边界校验，覆盖 `../`、编码穿越、盘符、符号链接等）。
+- **错误格式**：`{"type":"error","code":<HTTP>,"message":"..."}`，消息只含相对路径，不泄露绝对路径。
+- **只读已落盘数据**：Log4Key 异步写入（flush 间隔约 1s），刚写入的日志可能短暂查不到，稍后刷新即可。
+- 完整接口说明（类/方法/错误码/限制）：[log4key-spring-boot-starter API](docs/api/log4key-spring-boot-starter.zh.md)。
+
+#### 注意事项
+
+- 应用端必须显式依赖 Log4Key 本体（`com.log4key:log4key-all`，**≥ 0.3.1**），starter 不会传递它。
+- 使用 starter 后应用内**无需**再调用 `LogManager.getInstance().shutdown()`。
+- 查询接口默认常开、无开关；只读已落盘数据；不递归子目录；每页固定 1000 行。
+- 非 servlet Web 应用（如仅批处理）引入 starter 只做初始化/关闭，不会注册 `/log4key`。
+- `LogManager` 是 JVM 级单例：上下文关闭后同一 JVM 内不会重新初始化（不支持 devtools 热重启）。
 
 ***
 
@@ -501,6 +577,10 @@ dependencies {
 ### 设计
 
 - [设计取舍](docs/concepts/design-decisions.zh.md)
+
+### Spring Boot Starter
+
+- [接口说明（类 / HTTP 契约 / 错误码 / 限制）](docs/api/log4key-spring-boot-starter.zh.md)
 
 ***
 

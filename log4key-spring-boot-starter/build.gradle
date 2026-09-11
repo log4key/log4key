@@ -1,0 +1,35 @@
+plugins {
+    id 'io.spring.dependency-management' version '1.1.0'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:$springBootVersion"
+    }
+}
+
+dependencies {
+    // Log4Key 本体由「应用端」提供（例如 com.log4key:log4key-all）。
+    // starter 只做 Spring 集成，因此这里全部使用 compileOnly：编译期可见，不向消费方传递、不锁版本。
+    compileOnly project(':log4key-core')
+    compileOnly project(':log4key-api')
+
+    // Servlet API：同样由消费方容器提供，compileOnly 不传递
+    compileOnly 'javax.servlet:javax.servlet-api'
+
+    // Spring Boot 基础能力：仅 context / autoconfigure 基础设施，不含 spring-boot-starter-web / spring-webmvc
+    implementation 'org.springframework.boot:spring-boot'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+
+    // 本模块测试需要上述 compileOnly 依赖的真实类型
+    testImplementation project(':log4key-core')
+    testImplementation project(':log4key-api')
+    testImplementation 'javax.servlet:javax.servlet-api'
+
+    // 其余测试依赖（JUnit4 / JUnit5 API / Mockito）由根 build.gradle subprojects 统一注入
+}
+
+// 本模块单测使用 JUnit 4（与 log4key-api 模块一致），避免依赖 vintage engine
+test {
+    useJUnit()
+}

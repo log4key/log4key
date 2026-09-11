@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Log4Key 标准配置文件（Spring Boot 示例） -->
+<!-- 沿用 samples/log4key-config-sample 的配置方式：由 log4key-core 的配置加载器自动发现 -->
+
+<logkey>
+    <!-- =====================================================
+     全局基础运行配置
+     ===================================================== -->
+    <configuration>
+        <defaultLevel>INFO</defaultLevel>
+
+        <!-- 日志根目录（本地查询接口 /log4key 的访问边界即此目录） -->
+        <rootDirectory>./logs</rootDirectory>
+
+        <defaultCharset>UTF-8</defaultCharset>
+
+        <executor>
+            <threads>4</threads>
+            <queueSize>8192</queueSize>
+        </executor>
+
+        <shutdownHook>true</shutdownHook>
+    </configuration>
+
+    <!-- =====================================================
+         Formatter 定义
+         ===================================================== -->
+    <formatters>
+        <formatter name="TEXT_DEFAULT">
+            <type>Text</type>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{36} : %msg%n</pattern>
+        </formatter>
+    </formatters>
+
+    <!-- =====================================================
+         Appenders 定义
+         ===================================================== -->
+    <appenders>
+        <console name="SAMPLE_CONSOLE">
+            <level>INFO</level>
+            <formatter>
+                <type>Text</type>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger : %msg</pattern>
+            </formatter>
+        </console>
+
+        <!-- 默认文件 Appender：directory/fileName 未显式指定时使用模板默认 {level}/{date} 与 {key}.log -->
+        <file name="DEFAULT_FILE">
+            <level>INFO</level>
+            <levelPolicy>AT_LEAST</levelPolicy>
+            <consoleEnabled>true</consoleEnabled>
+            <formatter ref="TEXT_DEFAULT"/>
+        </file>
+    </appenders>
+
+    <!-- =====================================================
+         Loggers 定义
+         ===================================================== -->
+    <loggers>
+        <root level="INFO">
+            <appender-ref>SAMPLE_CONSOLE</appender-ref>
+            <appender-ref>DEFAULT_FILE</appender-ref>
+        </root>
+    </loggers>
+</logkey>
