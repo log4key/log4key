@@ -57,9 +57,15 @@ subprojects {
         junitVersion = '5.9.2'
     }
 
-    dependencies {
-        implementation "org.slf4j:slf4j-api:$slf4jVersion"
+    // starter 只做 Spring 集成，Log4Key 本体与 SLF4J 均由应用端提供；
+    // 注入 implementation slf4j-api 会让它进入发布 POM（并向上抬升消费方的 slf4j 版本）
+    if (name != 'log4key-spring-boot-starter') {
+        dependencies {
+            implementation "org.slf4j:slf4j-api:$slf4jVersion"
+        }
+    }
 
+    dependencies {
         testImplementation "junit:junit:4.13.2"
         testImplementation "org.junit.jupiter:junit-jupiter-api:5.9.2"
         testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.7.0"

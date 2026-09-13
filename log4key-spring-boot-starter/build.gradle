@@ -14,13 +14,9 @@ dependencyManagement {
 }
 
 // Log4Key 本体由「应用端」提供（例如 com.log4key:log4key-all），starter 只做 Spring 集成。
-// - core / api / servlet：compileOnly（编译期可见，不向消费方传递、不锁版本）
-// - slf4j-api：根 build.gradle 的 subprojects 会注入到 implementation；这里从该配置排除，
-//   避免它出现在发布 POM 中；编译期仍由 compileOnly 提供
-configurations.named('implementation') {
-    exclude group: 'org.slf4j', module: 'slf4j-api'
-}
-
+// - core / api / servlet / slf4j-api：compileOnly（编译期可见，不向消费方传递、不锁版本）
+// - 根 build.gradle 的 subprojects 不对本模块注入 implementation slf4j-api，
+//   因此发布 POM 里不会出现 org.slf4j 依赖
 dependencies {
     compileOnly project(':log4key-core')
     compileOnly project(':log4key-api')
