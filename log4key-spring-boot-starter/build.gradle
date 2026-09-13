@@ -1,4 +1,9 @@
 plugins {
+    id 'java-library'
+    id 'maven-publish'
+    // 版本由根项目声明；此处只应用，使本模块拥有自己的 Maven Central 发布任务：
+    //   :log4key-spring-boot-starter:publishStarterPublicationToMavenCentral
+    id 'io.github.sgtsilvio.gradle.maven-central-publishing'
     id 'io.spring.dependency-management' version '1.1.0'
 }
 
@@ -8,22 +13,30 @@ dependencyManagement {
     }
 }
 
+// Log4Key 本体由「应用端」提供（例如 com.log4key:log4key-all），starter 只做 Spring 集成。
+// - core / api / servlet：compileOnly（编译期可见，不向消费方传递、不锁版本）
+// - slf4j-api：根 build.gradle 的 subprojects 会注入到 implementation；这里从该配置排除，
+//   避免它出现在发布 POM 中；编译期仍由 compileOnly 提供
+configurations.named('implementation') {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+}
+
 dependencies {
-    // Log4Key 本体由「应用端」提供（例如 com.log4key:log4key-all）。
-    // starter 只做 Spring 集成，因此这里全部使用 compileOnly：编译期可见，不向消费方传递、不锁版本。
     compileOnly project(':log4key-core')
     compileOnly project(':log4key-api')
+    compileOnly "org.slf4j:slf4j-api:$slf4jVersion"
 
-    // Servlet API：同样由消费方容器提供，compileOnly 不传递
     compileOnly 'javax.servlet:javax.servlet-api'
 
-    // Spring Boot 基础能力：仅 context / autoconfigure 基础设施，不含 spring-boot-starter-web / spring-webmvc
-    implementation 'org.springframework.boot:spring-boot'
-    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    // Spring 依赖以 api 暴露 → 发布 POM 中为 compile 作用域
+    // （仅 context / autoconfigure 基础设施，不含 spring-boot-starter-web / spring-webmvc）
+    api 'org.springframework.boot:spring-boot'
+    api 'org.springframework.boot:spring-boot-autoconfigure'
 
-    // 本模块测试需要上述 compileOnly 依赖的真实类型
+    // 本模块测试需要上述 compileOnly 依赖的真实类型（不参与发布）
     testImplementation project(':log4key-core')
     testImplementation project(':log4key-api')
+    testImplementation "org.slf4j:slf4j-api:$slf4jVersion"
     testImplementation 'javax.servlet:javax.servlet-api'
 
     // 其余测试依赖（JUnit4 / JUnit5 API / Mockito）由根 build.gradle subprojects 统一注入
@@ -32,4 +45,57 @@ dependencies {
 // 本模块单测使用 JUnit 4（与 log4key-api 模块一致），避免依赖 vintage engine
 test {
     useJUnit()
+}
+
+// ============================
+// 发布产物（按 publication 独立发布：
+//   ./gradlew :log4key-spring-boot-starter:publishStarterPublicationToMavenCentral -PstarterVersion=x.y.z）
+// ============================
+
+// Maven Central 要求 sources 与 javadoc jar
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+publishing {
+    publications {
+        starter(MavenPublication) {
+            from components.java
+            artifactId = 'log4key-spring-boot-starter'
+
+            pom {
+                inceptionYear = '2026'
+                name = 'Log4Key Spring Boot Starter'
+                description = 'Log4Key Spring Boot integration: startup initialization, lifecycle shutdown and the /log4key local log query endpoint. Requires com.log4key:log4key-all >= 0.3.1 (provided by the application).'
+                url = 'https://github.com/log4key/log4key'
+
+                licenses {
+                    license {
+                        name = 'GNU General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.en.html'
+                    }
+                    license {
+                        name = 'Commercial License'
+                        url = 'https://github.com/log4key/log4key/blob/master/LICENSING.md'
+                    }
+                }
+
+                developers {
+                    developer {
+                        name = 'Guanyx'
+                        email = 'log4key@zohomail.com'
+                        organization = 'Log4Key'
+                        organizationUrl = 'https://github.com/log4key'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/log4key/log4key.git'
+                    developerConnection = 'scm:git:ssh://git@github.com:log4key/log4key.git'
+                    url = 'https://github.com/log4key/log4key'
+                }
+            }
+        }
+    }
 }

@@ -206,8 +206,8 @@ dependencies {
     // Log4Key 本体：由应用端决定版本，要求 >= 0.3.1
     implementation 'com.log4key:log4key-all:0.3.1'
 
-    // Spring Boot starter：自动配置 + 生命周期 + /log4key 查询端点
-    implementation 'com.log4key:log4key-spring-boot-starter:<starter-version>'
+    // Spring Boot starter：自动配置 + 生命周期 + /log4key 查询端点（当前版本 0.1.0）
+    implementation 'com.log4key:log4key-spring-boot-starter:0.1.0'
 
     // Servlet 容器；排除 spring-boot-starter-logging
     // （Log4Key 自带 SLF4J 2.x provider，避免与 logback 1.2 的 SLF4J 1.7 绑定并存）
@@ -219,6 +219,7 @@ dependencies {
 
 > starter 对 Log4Key（core / api / slf4j）与 servlet-api 一律使用 `compileOnly`：**不向应用传递、也不锁定版本**，
 > 因此应用端必须自行依赖 `log4key-all`（**≥ 0.3.1**）。运行环境：Java 8 + Spring Boot 2.7.x（`javax.servlet`）+ servlet 容器。
+> 版本：`log4key-all` 与 `log4key-spring-boot-starter` **各自独立版本**（当前 starter `0.1.0`，要求 `log4key-all ≥ 0.3.1`）。
 
 #### 配置
 

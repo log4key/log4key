@@ -1,6 +1,6 @@
 # Log4Key Spring Boot Starter — API Reference
 
-> Module: `log4key-spring-boot-starter` (group `com.log4key`, version follows the root project `version`)
+> Module: `log4key-spring-boot-starter` (group `com.log4key`, **independently versioned**, currently `0.1.0`)
 > Dependency direction: `log4key-spring-boot-starter → log4key-core → log4key-api`
 > All Log4Key dependencies inside the starter are `compileOnly` (not transitive, no version pinning).
 
@@ -13,6 +13,7 @@
 | Responsibility | Spring Boot integration: startup initialization, lifecycle shutdown, `/log4key` local log query servlet |
 | Out of scope | No config parsing (reuses Log4Key's existing mechanism), no Spring MVC, no new `log4key.*` properties |
 | Log4Key runtime | **Provided by the application**, minimum version **≥ 0.3.1** (`com.log4key:log4key-all`) |
+| Starter version | **Independently versioned** (decoupled from `log4key-all`): currently `0.1.0`, driven by `starterVersion` in `gradle.properties` |
 | Starter's own deps | `compileOnly`: core / api / slf4j-api / servlet-api |
 | Runtime requirements | Java 8, Spring Boot 2.7.x (`javax.servlet` 4), a servlet container (embedded Tomcat or external) |
 | Spring deps | Only `spring-boot` / `spring-boot-autoconfigure` (no `spring-boot-starter-web`, no `spring-webmvc`) |
@@ -28,8 +29,8 @@ dependencies {
     // 1) Log4Key itself (version chosen by the application, >= 0.3.1)
     implementation 'com.log4key:log4key-all:0.3.1'
 
-    // 2) This starter
-    implementation 'com.log4key:log4key-spring-boot-starter:<starter-version>'
+    // 2) This starter (independently versioned, currently 0.1.0)
+    implementation 'com.log4key:log4key-spring-boot-starter:0.1.0'
 
     // 3) Servlet container + web endpoints
     //    Exclude spring-boot-starter-logging: Log4Key ships its own SLF4J 2.x provider

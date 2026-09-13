@@ -12,7 +12,8 @@ plugins {
 
 allprojects {
     group = 'com.log4key'
-    version = '0.3.1'
+    // 版本来源：gradle.properties（可被 -Plog4keyVersion= 覆盖）
+    version = findProperty('log4keyVersion') ?: '0.3.1'
 
     apply plugin: 'java'
 
@@ -21,6 +22,13 @@ allprojects {
 
     compileJava.options.encoding = 'UTF-8'
     compileTestJava.options.encoding = 'UTF-8'
+
+    // Javadoc 同样固定 UTF-8：否则 Windows 默认 GBK 会读取 UTF-8 中文注释报
+    // "编码GBK的不可映射字符"（模块级 javadoc 任务用于 withJavadocJar()）
+    tasks.withType(Javadoc).configureEach {
+        options.encoding = 'UTF-8'
+        options.charSet = 'UTF-8'
+    }
 
     repositories {
         maven { url "https://repo.maven.apache.org/maven2" }
@@ -59,6 +67,32 @@ subprojects {
         testImplementation "org.mockito:mockito-core:3.12.4"
         testImplementation "org.mockito:mockito-junit-jupiter:3.12.4"
     }
+
+    // 对启用发布的子模块（如 log4key-spring-boot-starter）统一配置 GPG 签名：
+    // 仅在提供密钥时注册（CI 通过 secrets 注入；本地无需签名）
+    plugins.withId('maven-publish') {
+        apply plugin: 'signing'
+        afterEvaluate {
+            def privateKey = findProperty('signingInMemoryKey')
+            def passphrase = findProperty('signingInMemoryKeyPassword')
+            if (privateKey && passphrase) {
+                signing {
+                    useInMemoryPgpKeys(privateKey as String, passphrase as String)
+                    sign publishing.publications
+                }
+            }
+        }
+    }
+}
+
+// ============================
+// 独立版本
+// ============================
+
+// starter 与 log4key-all 各自独立版本；由 gradle.properties 提供，
+// CI 可用 -PstarterVersion=x.y.z 覆盖（tag: starter-vX.Y.Z）
+project(':log4key-spring-boot-starter') {
+    version = findProperty('starterVersion') ?: '0.1.0'
 }
 
 // ============================
@@ -232,8 +266,14 @@ signing {
     def privateKey = findProperty("signingInMemoryKey")
     def passphrase = findProperty("signingInMemoryKeyPassword")
 
-    useInMemoryPgpKeys(privateKey as String, passphrase as String)
-    sign publishing.publications.mavenJava
+    // 仅在提供密钥时注册签名任务：
+    // - CI 通过 secrets 注入 → 对全部 publication 签名（Central 要求）
+    // - 本地（无密钥）→ 不注册签名任务，publishToMavenLocal 可直接使用
+    if (privateKey && passphrase) {
+        useInMemoryPgpKeys(privateKey as String, passphrase as String)
+        // 覆盖全部 publication（log4key-all 与 log4key-spring-boot-starter）
+        sign publishing.publications
+    }
 }
 
 // ============================

@@ -84,6 +84,27 @@ You retain full copyright to your code and may use it freely outside this projec
 - The maintainers may review contributions for compliance with code style, security, and license compatibility.  
 - Contributions are considered perpetual and irrevocable unless explicitly stated otherwise in writing.
 
+## Release & Versioning
+
+Log4Key publishes **two independent artifacts**:
+
+| Artifact | Coordinates | Built from |
+| :--- | :--- | :--- |
+| Aggregated core | `com.log4key:log4key-all` | root project (api + core, with sources + javadoc jars) |
+| Spring Boot starter | `com.log4key:log4key-spring-boot-starter` | `log4key-spring-boot-starter` module |
+
+They are **versioned independently**:
+
+- versions live in `gradle.properties` (`log4keyVersion`, `starterVersion`) and CI overrides the relevant one from the tag;
+- tag conventions:
+  - `vX.Y.Z` → publishes **only** `log4key-all`: `./gradlew publishMavenJavaPublicationToMavenCentral -Plog4keyVersion=X.Y.Z`
+  - `starter-vX.Y.Z` → publishes **only** `log4key-spring-boot-starter`: `./gradlew :log4key-spring-boot-starter:publishStarterPublicationToMavenCentral -PstarterVersion=X.Y.Z`
+- always use the per-publication task names above: running an unqualified aggregate task (e.g. `./gradlew publishToMavenCentral` from the root) executes it in **both** projects;
+- the starter requires `com.log4key:log4key-all >= 0.3.1` at runtime; it declares Log4Key as `compileOnly`, so applications must add `log4key-all` themselves;
+- Maven Central versions are immutable — bump the corresponding property before tagging;
+- publishing requires the `mavenCentralUsername` / `mavenCentralPassword` and `signingInMemoryKey` / `signingInMemoryKeyPassword` secrets (GitHub Actions). Local builds skip signing when the keys are absent;
+- a manual re-publish can be triggered via the `workflow_dispatch` inputs (`target=all|starter`, `version=X.Y.Z`).
+
 ## Code Style & Testing
 
 - Follow existing code conventions  

@@ -4,7 +4,6 @@ include 'log4key-api'
 include 'log4key-core'
 include 'log4key-enterprise'  // 商业版模块
 include 'log4key-benchmark'
-include 'log4key-all'
 include 'log4key-spring-boot-starter'
 include 'samples:log4key-quick-start'
 include 'samples:log4key-spring-boot-simple'

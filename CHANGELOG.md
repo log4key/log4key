@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 路径安全：以配置 `rootDirectory` 为唯一边界，段级校验 + canonical（real path）边界校验
   - 依赖模型：对 core/api/slf4j/servlet-api 全部 `compileOnly`，不向应用传递；应用端需自行依赖 `com.log4key:log4key-all`（≥ 0.3.1）
 - 新增接口说明文档：`docs/api/log4key-spring-boot-starter.zh.md` / `docs/api/log4key-spring-boot-starter.md`
+- 构建/发布：`log4key-all` 与 `log4key-spring-boot-starter` **独立版本、独立发布**
+  - 版本来自 `gradle.properties`（`log4keyVersion` / `starterVersion`），CI 按 tag 以 `-P` 覆盖
+  - tag 约定：`vX.Y.Z` → 只发 `log4key-all`；`starter-vX.Y.Z` → 只发 starter（per-publication 任务）
+  - starter 的发布 POM 排除 `slf4j-api`，Spring 依赖以 compile 作用域发布
 
 ---
 

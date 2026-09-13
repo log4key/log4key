@@ -214,8 +214,8 @@ dependencies {
     // Log4Key itself: version chosen by the application, requires >= 0.3.1
     implementation 'com.log4key:log4key-all:0.3.1'
 
-    // Spring Boot starter: auto-configuration + lifecycle + /log4key endpoint
-    implementation 'com.log4key:log4key-spring-boot-starter:<starter-version>'
+    // Spring Boot starter: auto-configuration + lifecycle + /log4key endpoint (current version 0.1.0)
+    implementation 'com.log4key:log4key-spring-boot-starter:0.1.0'
 
     // Servlet container; exclude spring-boot-starter-logging
     // (Log4Key ships its own SLF4J 2.x provider and must not coexist with logback 1.2's SLF4J 1.7 binding)
@@ -226,6 +226,7 @@ dependencies {
 ```
 
 > Inside the starter, Log4Key (core / api / slf4j) and servlet-api are declared `compileOnly`: they are **not transitive and not version-pinned**, so the application must depend on `log4key-all` itself (**>= 0.3.1**). Runtime: Java 8 + Spring Boot 2.7.x (`javax.servlet`) + a servlet container.
+> Versioning: `log4key-all` and `log4key-spring-boot-starter` are versioned **independently** (current starter `0.1.0`, requires `log4key-all >= 0.3.1`).
 
 #### Configuration
 

@@ -1,6 +1,6 @@
 # Log4Key Spring Boot Starter 接口说明
 
-> 模块：`log4key-spring-boot-starter`（group `com.log4key`，版本跟随项目根 `version`）
+> 模块：`log4key-spring-boot-starter`（group `com.log4key`，**独立版本**，当前 `0.1.0`）
 > 依赖方向：`log4key-spring-boot-starter → log4key-core → log4key-api`（starter 内部对 Log4Key 全部 `compileOnly`）
 
 ---
@@ -12,6 +12,7 @@
 | 职责 | Spring Boot 集成：启动初始化、生命周期关闭、`/log4key` 本地日志查询 Servlet |
 | 不做 | 不实现配置解析（复用 Log4Key 既有机制）、不引入 Spring MVC、不新增 `log4key.*` 配置项 |
 | Log4Key 本体 | **由应用端依赖**，最低版本 **≥ 0.3.1**（`com.log4key:log4key-all`） |
+| starter 版本 | **独立版本**（与 `log4key-all` 解耦）：当前 `0.1.0`，由 `gradle.properties` 的 `starterVersion` 管理 |
 | starter 内部依赖 | `compileOnly`：core / api / slf4j-api / servlet-api（运行期不传递、不锁版本） |
 | 运行环境 | Java 8、Spring Boot 2.7.x（`javax.servlet` 4）、需 servlet 容器（内嵌 Tomcat 或外部容器） |
 | Spring 依赖 | 仅 `spring-boot` / `spring-boot-autoconfigure`（无 `spring-boot-starter-web`、无 `spring-webmvc`） |
@@ -27,8 +28,8 @@ dependencies {
     // 1) Log4Key 本体（版本由应用决定，要求 >= 0.3.1）
     implementation 'com.log4key:log4key-all:0.3.1'
 
-    // 2) 本 starter
-    implementation 'com.log4key:log4key-spring-boot-starter:<starter-version>'
+    // 2) 本 starter（独立版本，当前 0.1.0）
+    implementation 'com.log4key:log4key-spring-boot-starter:0.1.0'
 
     // 3) Servlet 容器 + 业务 Web 能力
     //    排除 spring-boot-starter-logging：Log4Key 自带 SLF4J 2.x provider，
