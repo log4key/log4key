@@ -4,14 +4,14 @@ plugins {
     // 版本由根项目声明；此处只应用，使本模块拥有自己的 Maven Central 发布任务：
     //   :log4key-spring-boot-starter:publishStarterPublicationToMavenCentral
     id 'io.github.sgtsilvio.gradle.maven-central-publishing'
-    id 'io.spring.dependency-management' version '1.1.0'
 }
 
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.boot:spring-boot-dependencies:$springBootVersion"
-    }
-}
+// 不导入 spring-boot-dependencies BOM（io.spring.dependency-management）：
+// 它会移除受管依赖声明上的版本号，发布时 Gradle 校验会失败
+//   Invalid publication 'starter': Publication only contains dependencies and/or
+//   constraints without a version.
+// 且生成的 POM 里也不会带版本号。Spring 相关依赖因此写显式版本；
+// 目标兼容 Spring Boot 2.7.x（springBootVersion 由根项目 ext 提供）。
 
 // Log4Key 本体由「应用端」提供（例如 com.log4key:log4key-all），starter 只做 Spring 集成。
 // - core / api / servlet / slf4j-api：compileOnly（编译期可见，不向消费方传递、不锁版本）
@@ -22,18 +22,18 @@ dependencies {
     compileOnly project(':log4key-api')
     compileOnly "org.slf4j:slf4j-api:$slf4jVersion"
 
-    compileOnly 'javax.servlet:javax.servlet-api'
+    compileOnly "javax.servlet:javax.servlet-api:$servletVersion"
 
-    // Spring 依赖以 api 暴露 → 发布 POM 中为 compile 作用域
+    // Spring 依赖以 api 暴露 → 发布 POM 中为 compile 作用域，且必须带版本号
     // （仅 context / autoconfigure 基础设施，不含 spring-boot-starter-web / spring-webmvc）
-    api 'org.springframework.boot:spring-boot'
-    api 'org.springframework.boot:spring-boot-autoconfigure'
+    api "org.springframework.boot:spring-boot:$springBootVersion"
+    api "org.springframework.boot:spring-boot-autoconfigure:$springBootVersion"
 
     // 本模块测试需要上述 compileOnly 依赖的真实类型（不参与发布）
     testImplementation project(':log4key-core')
     testImplementation project(':log4key-api')
     testImplementation "org.slf4j:slf4j-api:$slf4jVersion"
-    testImplementation 'javax.servlet:javax.servlet-api'
+    testImplementation "javax.servlet:javax.servlet-api:$servletVersion"
 
     // 其余测试依赖（JUnit4 / JUnit5 API / Mockito）由根 build.gradle subprojects 统一注入
 }

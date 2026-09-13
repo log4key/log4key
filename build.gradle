@@ -54,6 +54,7 @@ subprojects {
         springBootVersion = '2.7.18'
         slf4jVersion = '2.0.9'
         nettyVersion = '4.1.108.Final'
+        servletVersion = '4.0.1'
         junitVersion = '5.9.2'
     }
 
