@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.4.0] - 2026-10-02
+### Added
+- 新增 `DirectoryTemplateProvider` 日志主键目录模板能力接口：业务 key 类实现后可为自身返回固定的落盘目录模板，路由将**完全取代** `appender.directory`，支持 `{date}/{level}/{key}` 占位符
+  - 目录模板为业务类的编译期常量，主键实例仅携带 key，高频实例化零目录字符串分配；路由按模板字符串缓存 `PathTemplate` 编译结果，避免重复编译
+  - 未实现该接口或返回 null/空时回落 `appender.directory` 原行为；其余主键与全局路由行为不变
+
+---
+
+## [0.1.0] - 2026-09-13
 ### Added
 - 新增 `log4key-spring-boot-starter` 模块：Spring Boot 集成
   - 自动配置：启动时 `LogManager.ensureInitialized`（复用既有配置加载），上下文关闭时 `LogManager.shutdown`（排空 + 关闭 Appender）
