@@ -5,6 +5,7 @@
  */
 package com.log4key.router;
 
+import com.log4key.api.DirectoryTemplateProvider;
 import com.log4key.api.LogEvent;
 import com.log4key.api.router.SmartFileRouter;
 import com.log4key.config.model.OutputLevelPolicy;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -72,6 +74,12 @@ public class SmartFileRouterImpl implements SmartFileRouter {
 
     private static final Map<String, Integer> LEVEL_PRIORITY = new HashMap<>();
     private static final String[] STANDARD_LEVELS = {"error", "warn", "info", "debug", "trace"};
+
+    /**
+     * 目录模板编译缓存。DirectoryTemplateProvider 的模板为编译期常量（字符串级别共享），
+     * 这里缓存对应的 PathTemplate，避免每个主键实例重复编译。PathTemplate 不可变且线程安全，可安全共享。
+     */
+    private static final ConcurrentHashMap<String, PathTemplate> TEMPLATE_CACHE = new ConcurrentHashMap<>();
 
     static {
         LEVEL_PRIORITY.put("error", 50000);
@@ -260,6 +268,42 @@ public class SmartFileRouterImpl implements SmartFileRouter {
     }
 
     /**
+     * 解析事件的实际目录路径。
+     *
+     * 优先使用主键自身的 DirectoryTemplateProvider 模板（完全取代 appender.directory）；
+     * 未提供时回落 appender.directory 模板。占位符展开由 PathTemplate 完成。
+     *
+     * @param event 日志事件
+     * @param overrideLevel 覆盖的日志级别（为 null 时使用 event 中的级别）
+     * @return 相对目录路径（不包含 rootDirectory）
+     */
+    private String resolveDir(LogEvent event, String overrideLevel) {
+        if (event.getLogKey() instanceof DirectoryTemplateProvider) {
+            String template = ((DirectoryTemplateProvider) event.getLogKey()).getDirectoryTemplate();
+            if (template != null && !template.isEmpty()) {
+                return cachedDirectoryTemplate(template).apply(event, overrideLevel);
+            }
+        }
+        return buildDir(event, overrideLevel);
+    }
+
+    /**
+     * 获取（或编译缓存）目录路径模板。
+     *
+     * 保证模板以分隔符开头后再缓存，与 rootDirectory 拼接语义一致。
+     * computeIfAbsent 保证同一模板字符串只编译一次。
+     *
+     * @param template 目录模板字符串
+     * @return 编译后的 PathTemplate
+     */
+    private static PathTemplate cachedDirectoryTemplate(String template) {
+        if (!template.startsWith("/") && !template.startsWith("\\")) {
+            template = "/" + template;
+        }
+        return TEMPLATE_CACHE.computeIfAbsent(template, PathTemplate::compile);
+    }
+
+    /**
      * 使用文件名模板从日志事件构建文件名。
      *
      * @param event 日志事件
@@ -290,7 +334,7 @@ public class SmartFileRouterImpl implements SmartFileRouter {
      * @return 完整的日志文件绝对路径
      */
     private PathKey buildPath(LogEvent event) {
-        String dir = buildDir(event);
+        String dir = resolveDir(event, null);
         Path fullDir = Paths.get(rootDirectory, dir);
         String filePath = buildFile(event);
 
@@ -310,7 +354,7 @@ public class SmartFileRouterImpl implements SmartFileRouter {
      * @return 完整的日志文件绝对路径
      */
     private PathKey buildPath(LogEvent event, String level) {
-        String dir = buildDir(event, level);
+        String dir = resolveDir(event, level);
         while (dir.startsWith("/") || dir.startsWith("\\")) {
             dir = dir.substring(1);
         }
