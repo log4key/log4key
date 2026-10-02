@@ -13,7 +13,7 @@ plugins {
 allprojects {
     group = 'com.log4key'
     // 版本来源：gradle.properties（可被 -Plog4keyVersion= 覆盖）
-    version = findProperty('log4keyVersion') ?: '0.3.1'
+    version = findProperty('log4keyVersion') ?: '0.4.0'
 
     apply plugin: 'java'
 
